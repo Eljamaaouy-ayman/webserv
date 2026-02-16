@@ -1,6 +1,8 @@
 #pragma once
 
 #include <iostream>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include "server.hpp"
 
 typedef struct location {
