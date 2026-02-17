@@ -2,17 +2,80 @@
 #include <fstream>
 #include <algorithm>
 
-
-void location_parsing(std::vector<std::string> &tokens, std::vector<std::string>::iterator &i, ConfigFile &conf)
-{
-    
-}
-
 void check_semicolon(std::vector<std::string>::iterator i){
     if (i->compare(";")){
         throw std::runtime_error("semicolon error");
     }
 }
+
+void location_parsing(std::vector<std::string> &tokens, std::vector<std::string>::iterator &i, ConfigFile &conf)
+{
+    location returned_loc;
+    i++;
+    returned_loc.path = *i;
+    i++;
+    if (i->compare("{"))
+        throw std::runtime_error("error, no open curly brace");
+    i++;
+    while (i != tokens.end())
+    {
+        if (!i->compare("allow_methods"))
+        {
+            i++;
+            if (!i->compare(";"))
+                throw std::runtime_error("no methods in the location");
+            while (i != tokens.end() && i->compare(";"))
+            {
+                if (i->compare("delete") && i->compare("post") && i->compare("get"))
+                    throw std::runtime_error("not the best methods in the location");
+                returned_loc.allow_methods.push_back(*i);
+                i++;
+            }
+            check_semicolon(i);
+        }
+        else if (!i->compare("root"))
+        {
+            returned_loc.root = *(i + 1);
+            i += 2;
+            check_semicolon(i);
+        }
+        else if (!i->compare("index"))
+        {
+            returned_loc.index = *(i + 1);
+            i += 2;
+            check_semicolon(i);
+        }
+        else if (!i->compare("return"))
+        {
+            returned_loc.return_to = *(i + 1);
+            i += 2;
+            check_semicolon(i);
+        }
+        else if (!i->compare("autoindex"))
+        {
+            i++;
+            if (i->compare("on") && i->compare("off"))
+                throw std::runtime_error("error in the autoindex");
+            else
+            {
+                if (!i->compare("on"))
+                    returned_loc.autoindex = true;
+                else
+                    returned_loc.autoindex = false;
+            }
+            i++;
+            check_semicolon(i);
+        }
+        else if (!i->compare("}"))
+            break;
+        else
+            throw std::runtime_error("error, unknown element!");
+        i++;
+    }
+    conf.locations.push_back(returned_loc);
+}
+
+
 
 void   get_config_server(std::vector<std::string> &tokens, ConfigFile &conf){
     int count = 0;
@@ -28,6 +91,7 @@ void   get_config_server(std::vector<std::string> &tokens, ConfigFile &conf){
     if (!tokens.begin()->compare("server") && !(tokens.begin() + 1)->compare("{") && !(tokens.end() - 1)->compare("}"))
     {
         for (i = tokens.begin(); i < tokens.end() - 1; i++){
+            // std::cout << *i << std::endl;
             if(!i->compare("server"))
                 i++;
             else if (!i->compare("listen")){
@@ -59,8 +123,8 @@ void   get_config_server(std::vector<std::string> &tokens, ConfigFile &conf){
                 i++;
                 check_semicolon(i);
             }
-            else if (!i->compare("error_page"))
-                location_parsing(tokens, i, conf);
+            // else if (!i->compare("location"))
+            //     location_parsing(tokens, i, conf);
             else if (!i->compare("index"))
             {
                 i++;
@@ -110,7 +174,10 @@ void   get_config_server(std::vector<std::string> &tokens, ConfigFile &conf){
                 check_semicolon(i);
             }
             else
+            {
+                std::cout << *i << std::endl;
                 throw std::runtime_error("config file error");
+            }
         }
     }
     else
