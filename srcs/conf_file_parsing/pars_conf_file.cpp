@@ -164,7 +164,7 @@ void   get_config_server(std::vector<std::string> &tokens, ConfigFile &conf){
                 i += 2;
                 check_semicolon(i);
             }
-            else if (i->compare("cgi_conf"))
+            else if (!i->compare("cgi_conf"))
             {
                 i++;
                 if ((*i)[0] != '.')
@@ -175,7 +175,6 @@ void   get_config_server(std::vector<std::string> &tokens, ConfigFile &conf){
             }
             else
             {
-                std::cout << *i << std::endl;
                 throw std::runtime_error("config file error");
             }
         }
