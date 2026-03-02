@@ -1,24 +1,29 @@
+NAME = 
+
+SRC =
+
+OBJS = $(SRC:.cpp=.o)
+
 CXX = c++
-CXXFLAGS = # -Wall -Wextra -Werror -std=c++98
-NAME = webserv
 
-SRCS = 	./srcs/main.cpp \
-		./srcs/conf_file_parsing/pars_conf_file.cpp
+CXXFLAGS = -Wall -Wextra -Werror -std=c++98
 
-
-OBJS = $(SRCS:.cpp=.o)
+RM = rm -f
 
 all: $(NAME)
-
+     
 $(NAME): $(OBJS)
-		$(CXX) $(CXXFLAGS) $(OBJS) -o $(NAME)
+	$(CXX) $(CXXFLAGS) $(OBJS) -o $(NAME)
 
-clean: 
-	rm -rf $(OBJS)
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+clean:
+	$(RM) $(OBJS)
 
 fclean: clean
-		rm -rf $(NAME)
+	$(RM) $(NAME)
 
 re: fclean all
 
-.SECONDARY: $(OBJS)
+.PHONY: all clean fclean re
