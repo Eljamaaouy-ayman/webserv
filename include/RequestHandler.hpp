@@ -5,16 +5,32 @@
 #include "SessionManager.hpp"
 #include "CreatePages.hpp"
 #include "ConfigFile.hpp"
+#include <sys/stat.h>
+#include <limits.h>
+#include <cstdlib>
+
+// Source - https://stackoverflow.com/a/74997647
+// Posted by Brecht Sanders
+// Retrieved 2026-03-03, License - CC BY-SA 4.0
+
+#include <stdlib.h>
+#define realpath(N,R) _fullpath((R),(N),_MAX_PATH) // for windows
+
 
 class HttpResponse;
 
 class RequestHandler
 {
 private:
+    static std::string resolvePath(const std::string &uri, const std::string &root);
+    static bool isDirectory(const std::string &uri);
+    static bool isMethodAllowed(const std::string &method, location *loc);
     static void parseMultipartHeaders(const std::string &headers);
     static std::vector<std::string> parseMultipart(const std::string &body, const std::string &boundary);
     static std::string extractBoundary(const std::string &contentType);
     static std::string extractFormField(const std::string &body, const std::string &field);
+    static location *getLocation(const std::string &uri);
+    static HttpResponse errorResponse(int code);
 
     static HttpResponse handleLogin(const std::string &username, const std::string &password);
     static HttpResponse handleLogout(const std::string &session);
@@ -22,10 +38,10 @@ private:
     static HttpResponse handleMultipart(const std::string &body, const std::string &contentType);
 
 public:
-    static std::string findContentType(const std::string &path);
-    static HttpResponse handleGET(const std::string &path);
-    static HttpResponse handlePOST(const std::string &path, const std::string &body, const std::string &contentType);
-    static HttpResponse handleDELETE(const std::string &path);
+    static std::string findContentType(const std::string &uri);
+    static HttpResponse handleGET(const std::string &uri);
+    static HttpResponse handlePOST(const std::string &uri, const std::string &body, const std::string &contentType);
+    static HttpResponse handleDELETE(const std::string &uri);
 };
 
 #endif

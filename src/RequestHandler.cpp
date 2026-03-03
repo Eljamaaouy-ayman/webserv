@@ -1,13 +1,50 @@
 #include "../include/RequestHandler.hpp"
 
-std::string RequestHandler::findContentType(const std::string &path)
+std::string RequestHandler::resolvePath(const std::string &uri, const std::string &root)
 {
-    size_t dotPos = path.find_last_of('.');
+    std::string path = root + uri;
+    char resolvedPath[PATH_MAX];
+    if (realpath(path.c_str(), resolvedPath) == NULL)
+        throw 404;
+    char resolvedRoot[PATH_MAX];
+    if (realpath(root.c_str(), resolvedRoot) == NULL)
+        throw 404;
+    std::string sResolvedPath(resolvedPath);
+    std::string sResolvedRoot(resolvedRoot);
+    if (sResolvedPath.compare(0, sResolvedRoot.size(), sResolvedRoot) != 0 || (sResolvedPath.size() > sResolvedRoot.size() && sResolvedPath[sResolvedRoot.size()] != '/'))
+        throw 403;
+    return sResolvedPath;
+}
 
-    if (dotPos == std::string::npos || dotPos == 0 || path[dotPos - 1] == '/')
+bool RequestHandler::isDirectory(const std::string &uri)
+{
+    struct stat st;
+
+    if (stat(uri.c_str(), &st) != 0)
+        return false;
+    return S_ISDIR(st.st_mode);
+}
+
+bool RequestHandler::isMethodAllowed(const std::string &method, location *loc)
+{
+    if (loc == NULL || loc->allow_methods.empty())
+        return true;
+    for (size_t i = 0; i < loc->allow_methods.size(); i++)
+    {
+        if (loc->allow_methods[i] == method)
+            return true;
+    }
+    return false;
+}
+
+std::string RequestHandler::findContentType(const std::string &uri)
+{
+    size_t dotPos = uri.find_last_of('.');
+
+    if (dotPos == std::string::npos || dotPos == 0 || uri[dotPos - 1] == '/')
         return "application/octet-stream";
 
-    std::string extension = path.substr(dotPos);
+    std::string extension = uri.substr(dotPos);
     for (size_t i = 0; i < extension.length(); i++)
         extension[i] = std::tolower(extension[i]);
     if (extension == ".html" || extension == ".htm")
@@ -64,6 +101,34 @@ std::string RequestHandler::extractBoundary(const std::string &contentType)
         boundary = boundary.substr(1, boundary.length() - 2);
     return "--" + boundary;
 }
+
+location *RequestHandler::getLocation(const std::string &uri)
+{
+    location *match = NULL;
+    size_t matchLen = 0;
+    for (size_t i = 0; i < ConfigFile::locations.size(); i++)
+    {
+        std::string &locPath = ConfigFile::locations[i].path;
+        if (uri.compare(0, locPath.size(), locPath) == 0 && locPath.size() > matchLen)
+        {
+            if (uri.size() == locPath.size() || uri[locPath.size()] == '/')
+            {
+                match = &ConfigFile::locations[i];
+                matchLen = locPath.size();
+            }
+        }
+    }
+    return match;
+}
+
+HttpResponse RequestHandler::errorResponse(int code)
+{
+    HttpResponse response;
+    response.setStatusCode(code);
+    response.setErrorPage();
+    return response;
+}
+
 void RequestHandler::parseMultipartHeaders(const std::string &headers)
 {
     size_t start = 0;
@@ -219,42 +284,75 @@ HttpResponse RequestHandler::handleMultipart(const std::string &body, const std:
             response.setStatusCode(201);
         }
     }
-    catch (int e)
+    catch (int code)
     {
-        response.setStatusCode(e);
+        response.setStatusCode(code);
         response.setErrorPage();
         return response;
     }
     return response;
 }
 
-HttpResponse RequestHandler::handleGET(const std::string &path)
+HttpResponse RequestHandler::handleGET(const std::string &uri)
 {
-    std::ifstream file((ConfigFile::root + path).c_str(), std::ios::binary);
     HttpResponse response;
+    location *loc = getLocation(uri);
 
-    if (file.is_open() == false)
-    {
-        response.setStatusCode(404);
-        response.setErrorPage();
-    }
+    if (isMethodAllowed("GET", loc) == false)
+        return errorResponse(405);
+    else if (loc && !loc->return_to.empty())
+        return errorResponse(301);
+
     else
     {
-        std::ostringstream buffer;
-        buffer << file.rdbuf();
-        response.setBody(buffer.str());
-        response.setStatusCode(200);
-        response.addHeader("Content-Type", findContentType(path));
+        std::string index = (loc && !loc->index.empty()) ? loc->index : ConfigFile::index;
+        std::string root = (loc && !loc->root.empty()) ? loc->root : ConfigFile::root;
+        std::string path;
+        try
+        {
+            path = resolvePath(uri, root);
+        }
+        catch (int code)
+        {
+            return errorResponse(code);
+        }
+        if (isDirectory(path))
+        {
+            if (uri[uri.size() - 1] != '/')
+            {
+                response.addHeader("Location", uri + '/');
+                response.setStatusCode(301);
+                return response;
+            }
+            path += '/' + index;
+        }
+
+        std::ifstream file(path.c_str(), std::ios::binary);
+        if (file.is_open() == false)
+        {
+            // response.setStatusCode(404);
+            // response.setErrorPage();
+            // todo
+            // i need to add support for autoindex tomorrow ;)
+        }
+        else
+        {
+            std::ostringstream buffer;
+            buffer << file.rdbuf();
+            response.setBody(buffer.str());
+            response.setStatusCode(200);
+            response.addHeader("Content-Type", findContentType(path));
+        }
     }
     return response;
 }
-HttpResponse RequestHandler::handlePOST(const std::string &path, const std::string &body, const std::string &contentType)
+HttpResponse RequestHandler::handlePOST(const std::string &uri, const std::string &body, const std::string &contentType)
 {
     HttpResponse response;
 
-    if (path == "/login")
+    if (uri == "/login")
         return (handleLogin(extractFormField(body, "username"), extractFormField(body, "password")));
-    else if (path == "/register")
+    else if (uri == "/register")
         return (handleRegister(extractFormField(body, "username"), extractFormField(body, "password")));
     else if (contentType.find("multipart/form-data") != std::string::npos)
     {
@@ -282,11 +380,11 @@ HttpResponse RequestHandler::handlePOST(const std::string &path, const std::stri
     }
     return response;
 }
-HttpResponse RequestHandler::handleDELETE(const std::string &path)
+HttpResponse RequestHandler::handleDELETE(const std::string &uri)
 {
     HttpResponse response;
 
-    if (std::remove(path.c_str()) != 0)
+    if (std::remove(uri.c_str()) != 0)
     {
         response.setStatusCode(403);
         response.setErrorPage();
