@@ -26,6 +26,8 @@ std::string HttpResponse::getReasonPhrase()
         return "Conflict";
     case 413:
         return "Payload Too Large";
+    case 415:
+        return "Unsupported Media Type";
     case 500:
         return "Internal Server Error";
     case 501:

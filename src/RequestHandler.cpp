@@ -16,11 +16,11 @@ std::string RequestHandler::resolvePath(const std::string &uri, const std::strin
     return sResolvedPath;
 }
 
-bool RequestHandler::isDirectory(const std::string &uri)
+bool RequestHandler::isDirectory(const std::string &path)
 {
     struct stat st;
 
-    if (stat(uri.c_str(), &st) != 0)
+    if (stat(path.c_str(), &st) != 0)
         return false;
     return S_ISDIR(st.st_mode);
 }
@@ -293,102 +293,127 @@ HttpResponse RequestHandler::handleMultipart(const std::string &body, const std:
     return response;
 }
 
+HttpResponse RequestHandler::handleAutoIndex(const std::string &path, const std::string &root)
+{
+    DIR *dir = opendir(path.c_str());
+
+    if (!dir)
+        return errorResponse(404);
+    char resolvedRoot[PATH_MAX];
+    realpath(root.c_str(), resolvedRoot);
+
+    HttpResponse response;
+    response.setBody(CreatePages::AutoIndexPage(dir, path, std::string(resolvedRoot) == path));
+    response.setStatusCode(200);
+    response.addHeader("Content-Type", "text/html");
+    closedir(dir);
+    return response;
+}
+
 HttpResponse RequestHandler::handleGET(const std::string &uri)
 {
     HttpResponse response;
     location *loc = getLocation(uri);
 
-    if (isMethodAllowed("GET", loc) == false)
+    if (loc && !loc->return_to.empty())
+    {
+        response.addHeader("Location", loc->return_to);
+        response.setStatusCode(301);
+        return response;
+    }
+    else if (isMethodAllowed("GET", loc) == false)
         return errorResponse(405);
-    else if (loc && !loc->return_to.empty())
-        return errorResponse(301);
 
+    std::string index = (loc && !loc->index.empty()) ? loc->index : ConfigFile::index;
+    std::string root = (loc && !loc->root.empty()) ? loc->root : ConfigFile::root;
+    std::string path;
+    try
+    {
+        path = resolvePath(uri, root);
+    }
+    catch (int code)
+    {
+        return errorResponse(code);
+    }
+    if (isDirectory(path))
+    {
+        if (uri.size() > 1 && uri[uri.size() - 1] != '/')
+        {
+            response.addHeader("Location", uri + '/');
+            response.setStatusCode(301);
+            return response;
+        }
+        if (!index.empty() && access((path + '/' + index).c_str(), F_OK) == 0)
+            path += '/' + index;
+        else if (loc && loc->autoindex)
+            return handleAutoIndex(path, root);
+        return errorResponse(403);
+    }
+    std::ifstream file(path.c_str(), std::ios::binary);
+    if (file.is_open() == false)
+        return errorResponse(errno == EACCES ? 403 : 404);
     else
     {
-        std::string index = (loc && !loc->index.empty()) ? loc->index : ConfigFile::index;
-        std::string root = (loc && !loc->root.empty()) ? loc->root : ConfigFile::root;
-        std::string path;
-        try
-        {
-            path = resolvePath(uri, root);
-        }
-        catch (int code)
-        {
-            return errorResponse(code);
-        }
-        if (isDirectory(path))
-        {
-            if (uri[uri.size() - 1] != '/')
-            {
-                response.addHeader("Location", uri + '/');
-                response.setStatusCode(301);
-                return response;
-            }
-            path += '/' + index;
-        }
-
-        std::ifstream file(path.c_str(), std::ios::binary);
-        if (file.is_open() == false)
-        {
-            // response.setStatusCode(404);
-            // response.setErrorPage();
-            // todo
-            // i need to add support for autoindex tomorrow ;)
-        }
-        else
-        {
-            std::ostringstream buffer;
-            buffer << file.rdbuf();
-            response.setBody(buffer.str());
-            response.setStatusCode(200);
-            response.addHeader("Content-Type", findContentType(path));
-        }
+        std::ostringstream buffer;
+        buffer << file.rdbuf();
+        response.setBody(buffer.str());
+        response.setStatusCode(200);
+        response.addHeader("Content-Type", findContentType(path));
     }
+
     return response;
 }
 HttpResponse RequestHandler::handlePOST(const std::string &uri, const std::string &body, const std::string &contentType)
 {
     HttpResponse response;
 
+    location *loc = getLocation(uri);
+    if (loc && !loc->return_to.empty())
+    {
+        response.addHeader("Location", loc->return_to);
+        response.setStatusCode(301);
+        return response;
+    }
+    else if (isMethodAllowed("POST", loc) == false)
+        return errorResponse(405);
+
     if (uri == "/login")
         return (handleLogin(extractFormField(body, "username"), extractFormField(body, "password")));
     else if (uri == "/register")
         return (handleRegister(extractFormField(body, "username"), extractFormField(body, "password")));
     else if (contentType.find("multipart/form-data") != std::string::npos)
-    {
         return handleMultipart(body, contentType);
-        // std::string boundary = extractBoundary(contentType);
-        // std::vector<std::string> parts = splitMultipart(body, boundary);
-        // for (size_t i = 0; i < parts.size(); i++)
-        // {
-        //     size_t filenameStart = parts[i].find("filename=\"") + 10;
-        //     size_t filenameEnd = parts[i].find('"', filenameStart);
-        //     std::string filename = parts[i].substr(filenameStart, filenameEnd - filenameStart);
+    return errorResponse(415);
 
-        //     size_t contentStart = parts[i].find("\r\n\r\n") + 4;
-        //     std::string content = parts[i].substr(contentStart);
-        //     std::string filepath = "www/uploads/" + filename;
-        //     std::ofstream file(filepath.c_str(), std::ios::binary);
-        //     if (file.is_open() == false)
-        //     {
-        //         response.setStatusCode(500);
-        //         response.setErrorPage();
-        //     }
-        //     file.write(content.c_str(), content.size());
-        //     response.setStatusCode(201);
-        // }
-    }
     return response;
 }
 HttpResponse RequestHandler::handleDELETE(const std::string &uri)
 {
     HttpResponse response;
+    location *loc = getLocation(uri);
 
-    if (std::remove(uri.c_str()) != 0)
+    if (loc && !loc->return_to.empty())
     {
-        response.setStatusCode(403);
-        response.setErrorPage();
+        response.addHeader("Location", loc->return_to);
+        response.setStatusCode(301);
+        return response;
     }
+    else if (isMethodAllowed("DELETE", loc) == false)
+        return errorResponse(405);
+    std::string root = (loc && !loc->root.empty()) ? loc->root : ConfigFile::root;
+    std::string path;
+    try
+    {
+        path = resolvePath(uri, root);
+    }
+    catch (int code)
+    {
+        return errorResponse(code);
+    }
+    if (isDirectory(path))
+        return errorResponse(403);
+    if (std::remove(path.c_str()) != 0)
+        return errorResponse(errno == EACCES ? 403 : 404);
     else
         response.setStatusCode(204);
 

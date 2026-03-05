@@ -1,5 +1,31 @@
 #include "../include/CreatePages.hpp"
 
+std::string CreatePages::AutoIndexPage(DIR *dir, const std::string &path, bool isRoot)
+{
+    std::ostringstream page;
+    page << "<!DOCTYPE html>\n"
+            "<html lang = \"en\">\n"
+            "<head>\n"
+            "<meta charset = \"UTF-8\">\n"
+            "<title> Index of / </ title></ head><body style = \"font-family: monospace; margin:40px;\"><h1 style = \"border-bottom:1px solid #ccc; padding-bottom:10px;\"> Index of / </ h1>\n"
+            "<ul style = \"list-style:none; padding-left:0;\">\n";
+
+    struct dirent *entry;
+    if (!isRoot)
+        page << "<li style=\"padding:6px 0;\"><a style=\"text-decoration:none; color:#0066cc;\" href=\"../\">../</a></li>\n";
+    while ((entry = readdir(dir)) != NULL)
+    {
+        if (std::string(entry->d_name) == "." || (std::string(entry->d_name) == ".."))
+            continue;
+        std::string name = RequestHandler::isDirectory(path + '/' + entry->d_name) ? entry->d_name + '/' : entry->d_name;
+        page << "<li style=\"padding:6px 0;\"><a style=\"text-decoration:none; color:#0066cc;\" href=\"" + name + "\">" + name + "</a></li>\n";
+    }
+    page << "</ul>\n"
+            "</body>\n"
+            "</html>\n";
+    return page.str();
+}
+
 std::string CreatePages::UploadsListPage()
 {
     std::ostringstream page;
@@ -14,24 +40,26 @@ std::string CreatePages::UploadsListPage()
             "<h2 class=\"text-2xl font-bold text-white mb-6 text-center tracking-wide\">Uploaded Files</h2>\n"
             "<ul id=\"fileList\" class=\"space-y-4\">\n";
 
- DIR *dir = opendir("www/uploads");
+    DIR *dir = opendir("www/uploads");
 
- struct dirent *file;
- if(dir)
- {
-    while((file = readdir(dir)) != NULL)
+    struct dirent *file;
+    if (dir)
     {
-        std::string filename = file->d_name;
-        if(filename == "." || filename == "..")
-        continue;
-        page << "<li class=\"flex items-center justify-between bg-slate-800 hover:bg-slate-700 transition p-4 rounded-xl shadow-lg\">\n"
-            "<a href=\"/uploads/" << filename << "\" class=\"text-blue-400 hover:text-cyan-300 font-medium\">" << filename << "</a>\n"
-            "<button class=\"bg-red-500 hover:bg-red-600 text-white px-4 py-1.5 rounded-lg shadow-md\"\n"
-            " onclick=\"deleteFile('" << filename << "', this)\">Delete</button>\n"
-            "</li>\n";
+        while ((file = readdir(dir)) != NULL)
+        {
+            std::string filename = file->d_name;
+            if (filename == "." || filename == "..")
+                continue;
+            page << "<li class=\"flex items-center justify-between bg-slate-800 hover:bg-slate-700 transition p-4 rounded-xl shadow-lg\">\n"
+                    "<a href=\"/uploads/"
+                 << filename << "\" class=\"text-blue-400 hover:text-cyan-300 font-medium\">" << filename << "</a>\n"
+                                                                                                             "<button class=\"bg-red-500 hover:bg-red-600 text-white px-4 py-1.5 rounded-lg shadow-md\"\n"
+                                                                                                             " onclick=\"deleteFile('"
+                 << filename << "', this)\">Delete</button>\n"
+                                "</li>\n";
+        }
     }
- }
-        page << "</ul>\n"
+    page << "</ul>\n"
             "</div>\n"
             "<script>\n"
             "function deleteFile(filename, btn) {\n"
@@ -42,10 +70,9 @@ std::string CreatePages::UploadsListPage()
             "</script>\n"
             "</body>\n"
             "</html>\n";
- 
- return page.str();
+    closedir(dir);
+    return page.str();
 }
-
 
 std::string CreatePages::LoginPage(const std::string &errorMsg)
 {
@@ -105,24 +132,27 @@ std::string CreatePages::UploadsPage()
             "<h2 class=\"text-2xl font-bold text-white mb-6 text-center tracking-wide\">Uploaded Files</h2>\n"
             "<ul id=\"fileList\" class=\"space-y-4\">\n";
 
- DIR *dir = opendir("www/uploads");
+    DIR *dir = opendir("www/uploads");
 
- struct dirent *file;
- if(dir)
- {
-    while((file = readdir(dir)) != NULL)
+    struct dirent *file;
+    if (dir)
     {
-        std::string filename = file->d_name;
-        if(filename == "." || filename == "..")
-        continue;
-        page << "<li class=\"flex items-center justify-between bg-slate-800 hover:bg-slate-700 transition p-4 rounded-xl shadow-lg\">\n"
-            "<a href=\"/uploads/" << filename << "\" class=\"text-blue-400 hover:text-cyan-300 font-medium\">" << filename << "</a>\n"
-            "<button class=\"bg-red-500 hover:bg-red-600 text-white px-4 py-1.5 rounded-lg shadow-md\"\n"
-            " onclick=\"deleteFile('" << filename << "', this)\">Delete</button>\n"
-            "</li>\n";
+        while ((file = readdir(dir)) != NULL)
+        {
+            std::string filename = file->d_name;
+            if (filename == "." || filename == "..")
+                continue;
+            page << "<li class=\"flex items-center justify-between bg-slate-800 hover:bg-slate-700 transition p-4 rounded-xl shadow-lg\">\n"
+                    "<a href=\"/uploads/"
+                 << filename << "\" class=\"text-blue-400 hover:text-cyan-300 font-medium\">" << filename << "</a>\n"
+                                                                                                             "<button class=\"bg-red-500 hover:bg-red-600 text-white px-4 py-1.5 rounded-lg shadow-md\"\n"
+                                                                                                             " onclick=\"deleteFile('"
+                 << filename << "', this)\">Delete</button>\n"
+                                "</li>\n";
+        }
+        closedir(dir);
     }
- }
-        page << "</ul>\n"
+    page << "</ul>\n"
             "</div>\n"
             "<script>\n"
             "function deleteFile(filename, btn) {\n"
@@ -133,6 +163,6 @@ std::string CreatePages::UploadsPage()
             "</script>\n"
             "</body>\n"
             "</html>\n";
- 
- return page.str();
+
+    return page.str();
 }
