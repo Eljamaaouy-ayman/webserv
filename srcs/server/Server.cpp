@@ -104,8 +104,12 @@ void Server::run()
 				{
 					buffer[n] = '\0';
 					_clients[fd].read_buff += buffer;
-					_clients[fd].write_buff = "Echo: " + _clients[fd].read_buff;
-					_fds[i].events |= POLLOUT;
+					if (_clients[fd].is_request_complete())
+					{
+						// http_parse(_clients[fd].read_buff) goes here
+						_clients[fd].write_buff = "Echo: " + _clients[fd].read_buff;
+						_fds[i].events |= POLLOUT;
+					}
 				}
 				else
 				{

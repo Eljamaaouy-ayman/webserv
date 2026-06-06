@@ -3,7 +3,7 @@
 #include <vector>
 #include <map>
 #include <poll.h>
-#include "../server/Client.hpp"
+#include "Client.hpp"
 
 class Server {
 public:
