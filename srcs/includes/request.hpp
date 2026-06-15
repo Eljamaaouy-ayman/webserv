@@ -30,6 +30,22 @@ class ConfigFile {
         void parse_config_file(char *av);
 };
 
+    // * CGI information
+    struct CgiInfo {
+      CgiInfo();
+  
+      std::string host;
+      std::string port;
+      std::string method;
+      std::string scriptPath;
+      std::string pathInfo;
+      std::string query;
+      std::map<std::string,std::string> headers;
+      std::string body;
+      size_t contentLength;
+      std::string contentType;
+    };
+
 class Request{
     public:
         std::string path;
