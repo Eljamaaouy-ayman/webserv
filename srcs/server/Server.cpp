@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <unistd.h>
 #include <algorithm>
+#include <iostream>
 
 #include "../includes/server.hpp"
 
@@ -106,6 +107,7 @@ void Server::run()
 					_clients[fd].read_buff += buffer;
 					if (_clients[fd].is_request_complete())
 					{
+						std::cout << _clients[fd].read_buff << std::endl;
 						// http_parse(_clients[fd].read_buff) goes here
 						_clients[fd].write_buff = "Echo: " + _clients[fd].read_buff;
 						_fds[i].events |= POLLOUT;

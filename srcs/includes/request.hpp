@@ -4,31 +4,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "server.hpp"
-#include <algorithm>
-#include <arpa/inet.h>
-#include <bits/stdc++.h>
-#include <climits>
-#include <cstdlib>
-#include <cstring>
-#include <ctime>
-#include <dirent.h>
-#include <fcntl.h>
-#include <fstream>
-#include <iostream>
-#include <netinet/in.h>
-#include <sstream>
-#include <sys/epoll.h>
-#include <sys/socket.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <wait.h>
-#include <vector>
-#include <map>
-#define PORT 8080
-#define IP INADDR_ANY
-#define IPv4 AF_INET
-#define MAX_BUFFER_SIZE 4096
-#define MAX_EVENTS 1024
 
 typedef struct location {
     std::string path;
@@ -54,7 +29,9 @@ class ConfigFile {
 
         void parse_config_file(char *av);
 };
-class Request : public Webserv {
+
+
+class Request{
 
   private:
     std::map<std::string, std::string> request;
@@ -62,7 +39,7 @@ class Request : public Webserv {
 	std::string	_cgiResponse;
 
   public:
-    METHOD method;
+    std::string method;
     std::string path;
     std::string httpV;
     bool isCGI;
