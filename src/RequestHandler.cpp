@@ -310,26 +310,16 @@ HttpResponse RequestHandler::handleAutoIndex(const std::string &path, const std:
     return response;
 }
 
-HttpResponse RequestHandler::handleGET(const std::string &uri)
+HttpResponse RequestHandler::handleGET(HttpRequest &req, location *loc)
 {
     HttpResponse response;
-    location *loc = getLocation(uri);
-
-    if (loc && !loc->return_to.empty())
-    {
-        response.addHeader("Location", loc->return_to);
-        response.setStatusCode(301);
-        return response;
-    }
-    else if (isMethodAllowed("GET", loc) == false)
-        return errorResponse(405);
 
     std::string index = (loc && !loc->index.empty()) ? loc->index : ConfigFile::index;
     std::string root = (loc && !loc->root.empty()) ? loc->root : ConfigFile::root;
     std::string path;
     try
     {
-        path = resolvePath(uri, root);
+        path = resolvePath(req.uri, root);
     }
     catch (int code)
     {
@@ -337,9 +327,9 @@ HttpResponse RequestHandler::handleGET(const std::string &uri)
     }
     if (isDirectory(path))
     {
-        if (uri.size() > 1 && uri[uri.size() - 1] != '/')
+        if (req.uri.size() > 1 && req.uri[req.uri.size() - 1] != '/')
         {
-            response.addHeader("Location", uri + '/');
+            response.addHeader("Location", req.uri + '/');
             response.setStatusCode(301);
             return response;
         }
@@ -363,48 +353,29 @@ HttpResponse RequestHandler::handleGET(const std::string &uri)
 
     return response;
 }
-HttpResponse RequestHandler::handlePOST(const std::string &uri, const std::string &body, const std::string &contentType)
+HttpResponse RequestHandler::handlePOST(HttpRequest &req)
 {
     HttpResponse response;
 
-    location *loc = getLocation(uri);
-    if (loc && !loc->return_to.empty())
-    {
-        response.addHeader("Location", loc->return_to);
-        response.setStatusCode(301);
-        return response;
-    }
-    else if (isMethodAllowed("POST", loc) == false)
-        return errorResponse(405);
-
-    if (uri == "/login")
-        return (handleLogin(extractFormField(body, "username"), extractFormField(body, "password")));
-    else if (uri == "/register")
-        return (handleRegister(extractFormField(body, "username"), extractFormField(body, "password")));
-    else if (contentType.find("multipart/form-data") != std::string::npos)
-        return handleMultipart(body, contentType);
+    if (req.uri == "/login"  && req.contentType.find("multipart/form-data") != std::string::npos)
+        return (handleLogin(extractFormField(req.body, "username"), extractFormField(req.body, "password")));
+    else if (req.uri == "/register" && req.contentType.find("multipart/form-data") != std::string::npos)
+        return (handleRegister(extractFormField(req.body, "username"), extractFormField(req.body, "password")));
+    else if (req.contentType.find("multipart/form-data") != std::string::npos)
+        return handleMultipart(req.body, req.contentType);
     return errorResponse(415);
 
     return response;
 }
-HttpResponse RequestHandler::handleDELETE(const std::string &uri)
+HttpResponse RequestHandler::handleDELETE(HttpRequest &req, location *loc)
 {
     HttpResponse response;
-    location *loc = getLocation(uri);
 
-    if (loc && !loc->return_to.empty())
-    {
-        response.addHeader("Location", loc->return_to);
-        response.setStatusCode(301);
-        return response;
-    }
-    else if (isMethodAllowed("DELETE", loc) == false)
-        return errorResponse(405);
     std::string root = (loc && !loc->root.empty()) ? loc->root : ConfigFile::root;
     std::string path;
     try
     {
-        path = resolvePath(uri, root);
+        path = resolvePath(req.uri, root);
     }
     catch (int code)
     {
@@ -418,4 +389,25 @@ HttpResponse RequestHandler::handleDELETE(const std::string &uri)
         response.setStatusCode(204);
 
     return response;
+}
+HttpResponse RequestHandler::handleRequest(HttpRequest &req)
+{
+    location *loc = getLocation(req.uri);
+
+    if (loc && !loc->return_to.empty())
+    {
+        HttpResponse response;
+        response.addHeader("Location", loc->return_to);
+        response.setStatusCode(301);
+        return response;
+    }
+    else if (isMethodAllowed(req.method, loc) == false)
+        return errorResponse(405);
+    if(req.method == "GET")
+        return handleGET(req, loc);
+    else if(req.method == "POST")
+        return handlePOST(req);
+    else if(req.method == "DELETE")
+        return handleDELETE(req, loc);
+    return errorResponse(501);
 }

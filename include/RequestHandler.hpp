@@ -2,6 +2,7 @@
 #define REQUESTHANDLER_HPP
 #include "HttpResponse.hpp"
 #include "UserManager.hpp"
+#include "HttpRequestExample.hpp"
 #include "SessionManager.hpp"
 #include "CreatePages.hpp"
 #include "ConfigFile.hpp"
@@ -9,14 +10,10 @@
 #include <limits.h>
 #include <cstdlib>
 #include <dirent.h>
-
-
-// Source - https://stackoverflow.com/a/74997647
-// Posted by Brecht Sanders
-// Retrieved 2026-03-03, License - CC BY-SA 4.0
+#include <unistd.h>
 
 #include <stdlib.h>
-#define realpath(N,R) _fullpath((R),(N),_MAX_PATH) // for windows
+// #define realpath(N,R) _fullpath((R),(N),_MAX_PATH) // for windows
 
 
 class HttpResponse;
@@ -42,9 +39,10 @@ private:
     public:
     static bool isDirectory(const std::string &path);
     static std::string findContentType(const std::string &uri);
-    static HttpResponse handleGET(const std::string &uri);
-    static HttpResponse handlePOST(const std::string &uri, const std::string &body, const std::string &contentType);
-    static HttpResponse handleDELETE(const std::string &uri);
-};
+    static HttpResponse handleGET(HttpRequest &req, location *loc);
+    static HttpResponse handlePOST(HttpRequest &req);
+    static HttpResponse handleDELETE(HttpRequest &req, location *loc);
+    static HttpResponse handleRequest(HttpRequest &req);
 
+};
 #endif
