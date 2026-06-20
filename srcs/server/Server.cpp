@@ -81,7 +81,7 @@ void Server::_disconnect_client(size_t& i)
 	--i;
 }
 
-void Server::run()
+void Server::run(Request request)
 {
 	while (true)
 	{
@@ -108,6 +108,9 @@ void Server::run()
 					if (_clients[fd].is_request_complete())
 					{
 						std::cout << _clients[fd].read_buff << std::endl;
+						// this is the right place to parse the request!!
+						request.setRequest("this is ayman");
+
 						// http_parse(_clients[fd].read_buff) goes here
 						_clients[fd].write_buff = "Echo: " + _clients[fd].read_buff;
 						_fds[i].events |= POLLOUT;

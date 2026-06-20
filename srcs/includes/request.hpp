@@ -43,11 +43,11 @@ class Request{
     std::string path;
     std::string httpV;
     bool isCGI;
-    ConfigFile config;
+    ConfigFile conf;
 
     // * CGI information
     struct CgiInfo {
-      CgiInfo();
+      // CgiInfo();
   
       std::string host;
       std::string port;
@@ -84,8 +84,8 @@ class Request{
 };
 
 
-class Request{
-    public:
-        std::string path;
-        ConfigFile conf;
-};
+// class Request{
+//     public:
+//         std::string path;
+//         ConfigFile conf;
+// };
