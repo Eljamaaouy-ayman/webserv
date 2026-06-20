@@ -1,5 +1,16 @@
 #include "../include/RequestHandler.hpp"
 
+bool RequestHandler::isAuthenticated(HttpRequest &req)
+{
+    if(req.headers.find("Cookie") == req.headers.end())
+        return false;
+    std::string sessionID = SessionManager::extractSessionID(req.headers["Cookie"]);
+    if(sessionID.empty())
+        return false;
+    return !SessionManager::getSessionData(sessionID).empty();
+}
+
+
 std::string RequestHandler::resolvePath(const std::string &uri, const std::string &root)
 {
     std::string path = root + uri;
@@ -357,9 +368,9 @@ HttpResponse RequestHandler::handlePOST(HttpRequest &req)
 {
     HttpResponse response;
 
-    if (req.uri == "/login"  && req.contentType.find("multipart/form-data") != std::string::npos)
+    if (req.uri == "/login")
         return (handleLogin(extractFormField(req.body, "username"), extractFormField(req.body, "password")));
-    else if (req.uri == "/register" && req.contentType.find("multipart/form-data") != std::string::npos)
+    else if (req.uri == "/register")
         return (handleRegister(extractFormField(req.body, "username"), extractFormField(req.body, "password")));
     else if (req.contentType.find("multipart/form-data") != std::string::npos)
         return handleMultipart(req.body, req.contentType);
@@ -392,17 +403,24 @@ HttpResponse RequestHandler::handleDELETE(HttpRequest &req, location *loc)
 }
 HttpResponse RequestHandler::handleRequest(HttpRequest &req)
 {
+    HttpResponse response;
     location *loc = getLocation(req.uri);
 
     if (loc && !loc->return_to.empty())
     {
-        HttpResponse response;
         response.addHeader("Location", loc->return_to);
         response.setStatusCode(301);
         return response;
     }
     else if (isMethodAllowed(req.method, loc) == false)
         return errorResponse(405);
+        
+    if(req.uri == "/upload" && !isAuthenticated(req))
+    {
+        response.addHeader("Location", "/login");
+        response.setStatusCode(302);
+        return response;
+    }
     if(req.method == "GET")
         return handleGET(req, loc);
     else if(req.method == "POST")

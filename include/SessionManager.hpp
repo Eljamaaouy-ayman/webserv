@@ -15,6 +15,7 @@ public:
     static std::string createSession(const std::string &user);
     static void destroySession (const std::string &sessionID);
     static std::string getSessionData(const std::string &sessionID);
+    static std::string extractSessionID(const std::string &cookie);
 };
 
 #endif

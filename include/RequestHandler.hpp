@@ -29,6 +29,7 @@ private:
     static std::string extractFormField(const std::string &body, const std::string &field);
     static location *getLocation(const std::string &uri);
     static HttpResponse errorResponse(int code);
+    static bool isAuthenticated(HttpRequest &req);
     
     static HttpResponse handleLogin(const std::string &username, const std::string &password);
     static HttpResponse handleLogout(const std::string &session);
