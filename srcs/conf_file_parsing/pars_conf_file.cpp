@@ -123,8 +123,8 @@ void   get_config_server(std::vector<std::string> &tokens, ConfigFile &conf){
                 i++;
                 check_semicolon(i);
             }
-            // else if (!i->compare("location"))
-            //     location_parsing(tokens, i, conf);
+            else if (!i->compare("location"))
+                location_parsing(tokens, i, conf);
             else if (!i->compare("index"))
             {
                 i++;

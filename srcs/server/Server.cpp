@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <unistd.h>
 #include <algorithm>
+#include <iostream>
 
 #include "../includes/server.hpp"
 
@@ -61,6 +62,7 @@ void Server::_accept_client(int server_fd)
 		throw std::runtime_error("accept() failed");
 
 	fcntl(client_fd, F_SETFL, O_NONBLOCK);
+	std::cout << "[SERVER] new client connected  fd=" << client_fd << "\n"; // test
 
 	_clients[client_fd] = Client();
 
@@ -74,6 +76,7 @@ void Server::_accept_client(int server_fd)
 void Server::_disconnect_client(size_t& i)
 {
 	int fd = _fds[i].fd;
+	std::cout << "[SERVER] client disconnected   fd=" << fd << "\n"; // test
 	close(fd);
 	_clients.erase(fd);
 	_fds.erase(_fds.begin() + i);
@@ -104,8 +107,10 @@ void Server::run()
 				{
 					buffer[n] = '\0';
 					_clients[fd].read_buff += buffer;
+					std::cout << "[CLIENT fd=" << fd << "] received " << n << " bytes:\n" << buffer << "\n"; // test
 					if (_clients[fd].is_request_complete())
 					{
+						std::cout << "[SERVER] request complete on fd=" << fd << ", sending response\n"; // test
 						// http_parse(_clients[fd].read_buff) goes here
 						_clients[fd].write_buff = "Echo: " + _clients[fd].read_buff;
 						_fds[i].events |= POLLOUT;
@@ -122,7 +127,10 @@ void Server::run()
 				std::string& buf = _clients[fd].write_buff;
 				ssize_t n = send(fd, buf.c_str(), buf.size(), 0);
 				if (n > 0)
+				{
+					std::cout << "[SERVER] sent " << n << " bytes to fd=" << fd << "\n"; // test
 					buf.erase(0, n);
+				}
 				if (buf.empty())
 					_fds[i].events &= ~POLLOUT;
 			}
