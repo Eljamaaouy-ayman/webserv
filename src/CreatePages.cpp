@@ -17,7 +17,7 @@ std::string CreatePages::AutoIndexPage(DIR *dir, const std::string &path, bool i
     {
         if (std::string(entry->d_name) == "." || (std::string(entry->d_name) == ".."))
             continue;
-        std::string name = RequestHandler::isDirectory(path + '/' + entry->d_name) ? entry->d_name + '/' : entry->d_name;
+        std::string name = RequestHandler::isDirectory(path + '/' + entry->d_name) ? std::string(entry->d_name) + '/' : std::string(entry->d_name);
         page << "<li style=\"padding:6px 0;\"><a style=\"text-decoration:none; color:#0066cc;\" href=\"" + name + "\">" + name + "</a></li>\n";
     }
     page << "</ul>\n"

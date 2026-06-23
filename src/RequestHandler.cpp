@@ -1,15 +1,15 @@
 #include "../include/RequestHandler.hpp"
+#include <iostream>
 
 bool RequestHandler::isAuthenticated(HttpRequest &req)
 {
-    if(req.headers.find("Cookie") == req.headers.end())
+    if (req.headers.find("Cookie") == req.headers.end())
         return false;
     std::string sessionID = SessionManager::extractSessionID(req.headers["Cookie"]);
-    if(sessionID.empty())
+    if (sessionID.empty())
         return false;
     return !SessionManager::getSessionData(sessionID).empty();
 }
-
 
 std::string RequestHandler::resolvePath(const std::string &uri, const std::string &root)
 {
@@ -140,52 +140,41 @@ HttpResponse RequestHandler::errorResponse(int code)
     return response;
 }
 
-void RequestHandler::parseMultipartHeaders(const std::string &headers)
+void RequestHandler::parseContentDisposition(Part &part)
 {
-    size_t start = 0;
-    bool hasContentType = false;
-    bool hasContentDisposition = false;
-    while (start < headers.size())
-    {
-        size_t end = headers.find("\r\n", start);
-        std::string header = headers.substr(start, end - start);
-        size_t colon = header.find(": ");
-        if (colon == std::string::npos)
-            throw 400;
-        std::string key = header.substr(0, colon);
-        std::string value = header.substr(colon + 2);
+    if (part.headers.find("Content-Disposition") == part.headers.end())
+        throw 400;
 
-        if (key.empty() || value.empty())
-            throw 400;
-        if (key == "Content-Disposition")
-        {
-            if (hasContentDisposition)
-                throw 400;
-            size_t pos = value.find("filename=\"");
-            if (value.find(" form-data; name=\"") != 0 || pos == std::string::npos)
-                throw 400;
-            size_t filenameEnd = value.find('\"', pos + 10);
-            if (filenameEnd == std::string::npos || filenameEnd == pos + 10)
-                throw 400;
-            hasContentDisposition = true;
-        }
-        else if (key == "Content-Type")
-        {
-            if (hasContentType)
-                throw 400;
-            hasContentType = true;
-        }
-        if (end == std::string::npos)
-            break;
-        start = end + 2;
-    }
-    if (!hasContentDisposition)
+    std::string value = part.headers["Content-Disposition"];
+    if (value.find("form-data") == std::string::npos)
+        throw 400;
+
+    size_t start = value.find("name=\"");
+    if (start == std::string::npos)
+        throw 400;
+    start += 6;
+    size_t end = value.find("\"", start);
+    if (end == std::string::npos)
+        throw 400;
+    part.name = value.substr(start, end - start);
+
+    start = value.find("filename=\"");
+    if (start == std::string::npos)
+        throw 400;
+    start += 10;
+    end = value.find("\"", start);
+    if (end == std::string::npos)
+        throw 400;
+    part.filename = value.substr(start, end - start);
+
+    if (part.filename.empty())
         throw 400;
 }
 
-std::vector<std::string> RequestHandler::parseMultipart(const std::string &body, const std::string &boundary)
+std::vector<Part> RequestHandler::parseMultipart(const std::string &body, const std::string &boundary)
 {
-    std::vector<std::string> parts;
+    std::vector<std::string> sParts;
+    std::vector<Part> parts;
     size_t start = 0;
     while (true)
     {
@@ -195,7 +184,7 @@ std::vector<std::string> RequestHandler::parseMultipart(const std::string &body,
         start += boundary.length();
         if (body.substr(start, 2) == "--")
         {
-            if (body.substr(start + 2) != "\r\n" && body.substr(start + 2) != "")
+            if (body.substr(start + 2) != "\r\n" && !body.substr(start + 2).empty())
                 throw 400;
             break;
         }
@@ -204,24 +193,41 @@ std::vector<std::string> RequestHandler::parseMultipart(const std::string &body,
         size_t end = body.find(boundary, start);
         if (end == std::string::npos)
             throw 400; // error
-        std::string part = body.substr(start, end - start);
-        if (part.size() >= 2 && part.substr(part.size() - 2) == "\r\n")
-            part = part.substr(0, part.size() - 2);
-        parts.push_back(part);
+        std::string sPart = body.substr(start, end - start);
+        if (sPart.size() >= 2 && sPart.substr(sPart.size() - 2) == "\r\n")
+            sPart = sPart.substr(0, sPart.size() - 2);
+        sParts.push_back(sPart);
     }
-    for (size_t i = 0; i < parts.size(); i++)
+    for (size_t i = 0; i < sParts.size(); i++)
     {
-        size_t sep = parts[i].find("\r\n\r\n");
+        start = 0;
+        Part newPart;
+        size_t sep = sParts[i].find("\r\n\r\n");
         if (sep == std::string::npos)
             throw 400;
-        std::string headers = parts[i].substr(0, sep);
-        if (headers.empty())
-            throw 400;
-        parseMultipartHeaders(headers);
+        std::string headers = sParts[i].substr(0, sep);
+        newPart.body = sParts[i].substr(sep + 4);
+        while (start < headers.size())
+        {
+            size_t end = headers.find("\r\n", start);
+            std::string header = headers.substr(start, end - start);
+            size_t colon = header.find(":");
+            if (colon == std::string::npos)
+                throw 400; // this exception was thrown i need to know why
+            std::string key = header.substr(0, colon);
+            std::string value = header.substr(header.find_first_not_of(" \n\t", colon + 1));
+            if (key.empty() || value.empty())
+                throw 400;
+            newPart.headers[key] = value;
+            if (end == std::string::npos)
+                break;
+            start = end + 2;
+        }
+        parseContentDisposition(newPart);
+        parts.push_back(newPart);
     }
     return parts;
 }
-
 HttpResponse RequestHandler::handleLogin(const std::string &username, const std::string &password)
 {
     HttpResponse response;
@@ -270,30 +276,25 @@ HttpResponse RequestHandler::handleLogout(const std::string &session)
     response.addHeader("Location", "/login");
     return response;
 }
-HttpResponse RequestHandler::handleMultipart(const std::string &body, const std::string &contentType)
+HttpResponse RequestHandler::handleUpload(HttpRequest &req, location *loc)
 {
+    std::string root = (loc && !loc->root.empty()) ? loc->root : ConfigFile::root;
     HttpResponse response;
     try
     {
-        std::string boundary = extractBoundary(contentType);
-        std::vector<std::string> parts = parseMultipart(body, boundary);
+        std::string boundary = extractBoundary(req.contentType);
+        std::vector<Part> parts = parseMultipart(req.body, boundary);
+        if (parts.empty())
+            throw 400;
         for (size_t i = 0; i < parts.size(); i++)
         {
-            std::vector<std::string> headers;
-            size_t filenameStart = parts[i].find("filename=\"") + 10;
-            size_t filenameEnd = parts[i].find('"', filenameStart);
-            std::string filename = parts[i].substr(filenameStart, filenameEnd - filenameStart);
-            if (filename.find_first_of("/\\") != std::string::npos)
-                throw 400;
-            size_t contentStart = parts[i].find("\r\n\r\n") + 4;
-            std::string content = parts[i].substr(contentStart);
-            std::string filepath = "www/uploads/" + filename;
+            std::string filepath = root + "/uploads/" + parts[i].filename;
             std::ofstream file(filepath.c_str(), std::ios::binary);
             if (file.is_open() == false)
                 throw 500;
-            file.write(content.c_str(), content.size());
-            response.setStatusCode(201);
+            file.write(parts[i].body.c_str(), parts[i].body.size());
         }
+        response.setStatusCode(201);
     }
     catch (int code)
     {
@@ -364,7 +365,7 @@ HttpResponse RequestHandler::handleGET(HttpRequest &req, location *loc)
 
     return response;
 }
-HttpResponse RequestHandler::handlePOST(HttpRequest &req)
+HttpResponse RequestHandler::handlePOST(HttpRequest &req, location *loc)
 {
     HttpResponse response;
 
@@ -373,10 +374,8 @@ HttpResponse RequestHandler::handlePOST(HttpRequest &req)
     else if (req.uri == "/register")
         return (handleRegister(extractFormField(req.body, "username"), extractFormField(req.body, "password")));
     else if (req.contentType.find("multipart/form-data") != std::string::npos)
-        return handleMultipart(req.body, req.contentType);
+        return handleUpload(req, loc);
     return errorResponse(415);
-
-    return response;
 }
 HttpResponse RequestHandler::handleDELETE(HttpRequest &req, location *loc)
 {
@@ -414,18 +413,18 @@ HttpResponse RequestHandler::handleRequest(HttpRequest &req)
     }
     else if (isMethodAllowed(req.method, loc) == false)
         return errorResponse(405);
-        
-    if(req.uri == "/upload" && !isAuthenticated(req))
+
+    if (req.uri == "/upload" && !isAuthenticated(req))
     {
         response.addHeader("Location", "/login");
         response.setStatusCode(302);
         return response;
     }
-    if(req.method == "GET")
+    if (req.method == "GET")
         return handleGET(req, loc);
-    else if(req.method == "POST")
-        return handlePOST(req);
-    else if(req.method == "DELETE")
+    else if (req.method == "POST")
+        return handlePOST(req, loc);
+    else if (req.method == "DELETE")
         return handleDELETE(req, loc);
     return errorResponse(501);
 }

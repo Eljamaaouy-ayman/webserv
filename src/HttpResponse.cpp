@@ -77,7 +77,7 @@ void HttpResponse::setErrorPage()
     if (ConfigFile::error_page.find(statusCode) != ConfigFile::error_page.end())
     {
         std::string errorFilePath = ConfigFile::error_page[statusCode];
-        std::ifstream file(errorFilePath);
+        std::ifstream file(errorFilePath.c_str());
         if (file.is_open())
         {
             page << file.rdbuf();
@@ -108,7 +108,7 @@ std::string HttpResponse::build()
 {
     std::ostringstream response;
 
-    response << "HTTP/1.0 " << statusCode << ' ' << getReasonPhrase() << '\n';
+    response << "HTTP/1.1 " << statusCode << ' ' << getReasonPhrase() << '\n';
     for (std::map<std::string, std::string>::iterator it = headers.begin(); it != headers.end(); it++)
         response << it->first << ": " << it->second << '\n';
     for (size_t i = 0; i < cookies.size(); i++)
