@@ -8,6 +8,7 @@
 #include <iostream>
 
 #include "../includes/server.hpp"
+#include "../includes/request.hpp"
 
 int Server::_create_server_socket(int port)
 {
@@ -108,9 +109,7 @@ void Server::run(Request request)
 					if (_clients[fd].is_request_complete())
 					{
 						std::cout << _clients[fd].read_buff << std::endl;
-						// this is the right place to parse the request!!
-						request.setRequest("this is ayman");
-
+						request.setRequest(_clients[fd].read_buff);
 						// http_parse(_clients[fd].read_buff) goes here
 						_clients[fd].write_buff = "Echo: " + _clients[fd].read_buff;
 						_fds[i].events |= POLLOUT;
