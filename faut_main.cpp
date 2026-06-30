@@ -1,4 +1,5 @@
 #include "srcs/includes/server.hpp"
+#include "srcs/includes/request.hpp"
 #include <iostream>
 
 // compile: c++ -std=c++17 faut_main.cpp srcs/server/Server.cpp srcs/server/Client.cpp -o test_server
@@ -16,9 +17,11 @@ int main()
 		ports.push_back(8080);
 
 		Server server;
+		Request request;
+
 		server.init(ports);
 		std::cout << "Server listening on port 8080\n";
-		server.run();
+		server.run(request);
 	}
 	catch (const std::exception& e)
 	{

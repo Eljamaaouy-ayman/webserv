@@ -4,11 +4,14 @@
 #include <map>
 #include <poll.h>
 #include "Client.hpp"
+#include "request.hpp"
+
+class Request;
 
 class Server {
 public:
     void init(const std::vector<int>& ports);
-    void run();
+    void run(Request request);
 
 private:
     std::vector<pollfd>   _fds;

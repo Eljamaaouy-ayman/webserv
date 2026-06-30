@@ -4,6 +4,10 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "server.hpp"
+#include <sstream>
+#include <fstream>
+#include <unistd.h>
+#include <sys/stat.h>
 
 typedef struct location {
     std::string path;
@@ -80,7 +84,7 @@ class Request{
     bool pathGCIisFile(std::string path);
 	void	setCgiResponse(const std::string& cgiResponse);
 	const std::string& getCgiResponse() const;
-	std::string			getMethodByName(int enumFlag);
+	std::string			getMethodByName(std::string methodName);
 };
 
 
