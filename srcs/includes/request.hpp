@@ -8,6 +8,7 @@
 #include <fstream>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <algorithm>
 
 typedef struct location {
     std::string path;
@@ -41,6 +42,13 @@ class Request{
     std::map<std::string, std::string> request;
     std::map<std::string, std::string> session;
 	std::string	_cgiResponse;
+    bool parseRequestLine(const std::string& line);
+    bool parseHeaders(const std::string& req);
+    void parseBody(const std::string& req);
+    void validateAndStoreRequest();
+    void processMultipartBody();
+    void setupCgiInfo();
+    void clearRequestData();
 
   public:
     std::string method;
@@ -48,10 +56,11 @@ class Request{
     std::string httpV;
     bool isCGI;
     ConfigFile conf;
+    bool _foundCookie;
 
     // * CGI information
     struct CgiInfo {
-      // CgiInfo();
+      CgiInfo();
   
       std::string host;
       std::string port;

@@ -6,7 +6,7 @@ SRCS = 	./srcs/main.cpp \
 		./srcs/conf_file_parsing/pars_conf_file.cpp \
 		./srcs/server/Server.cpp \
 		./srcs/server/Client.cpp \
-		./srcs/server/Request.cpp
+		./srcs/request/request.cpp
 
 
 OBJS = $(SRCS:.cpp=.o)

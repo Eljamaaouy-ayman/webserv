@@ -1,6 +1,6 @@
 #include "../includes/request.hpp"
 
-Request::Request() : method("ELSE"), path(""), httpV(""), isCGI(false)
+Request::Request() : method("ELSE"), path(""), httpV(""), isCGI(false), _foundCookie(false)
 {
   // generate a session_id for cookies
   srand(time(0));
@@ -16,273 +16,330 @@ Request::CgiInfo::CgiInfo()
     : host(""), port(""), method("GET"), scriptPath(""), pathInfo(""),
       query(""), body(""), contentLength(0), contentType("") {}
 
-// void Request::setRequest(const std::string &req)
-// {
-//   if (!this->request.empty()) {
-//     this->request.clear();
-//   }
+/**
+ * Main entry point - parses the complete HTTP request
+ */
+void Request::setRequest(const std::string &req) {
+    // Clear all existing data
+    clearRequestData();
+    
+    // Parse the request line (method, path, HTTP version)
+    std::string line;
+    std::stringstream ss(req);
+    if (std::getline(ss, line)) {
+        if (!parseRequestLine(line)) {
+            this->method = "ERROR";
+            return;
+        }
+        // Check if request is CGI
+        this->checkCGI(this->path);
+    }
+    
+    // Parse headers
+    if (!parseHeaders(req)) {
+        this->method = "ERROR";
+        return;
+    }
+    
+    // Validate required headers (Host, Content-Length for POST)
+    validateAndStoreRequest();
+    
+    // Parse body if exists
+    parseBody(req);
+    
+    // Handle multipart/form-data (file uploads)
+    processMultipartBody();
+    
+    // Remove Cookie if not present in request
+    if (!_foundCookie) {
+        this->request.erase("Cookie");
+    }
+    
+    // Setup CGI info if this is a CGI request
+    if (this->getIsCGI()) {
+        setupCgiInfo();
+    }
 
-//   // check if the (path, httpV) is not empty if not we need to clear
-//   // the old data
-//   if (!this->path.empty()) {
-//     this->path.clear();
-//   }
-//   if (!this->httpV.empty()) {
-//     this->httpV.clear();
-//   }
+}
 
-//   // check if the cgi is not empty if not we need to clear the old data
-//   if (!this->cgi.host.empty()) {
-//     this->cgi.host.clear();
-//   }
-//   if (!this->cgi.port.empty()) {
-//     this->cgi.port.clear();
-//   }
-//   if (!this->cgi.method.empty()) {
-//     this->cgi.method.clear();
-//   }
-//   if (!this->cgi.scriptPath.empty()) {
-//     this->cgi.scriptPath.clear();
-//   }
-//   if (!this->cgi.pathInfo.empty()) {
-//     this->cgi.pathInfo.clear();
-//   }
-//   if (!this->cgi.query.empty()) {
-//     this->cgi.query.clear();
-//   }
-//   if (!this->cgi.headers.empty()) {
-//     this->cgi.headers.clear();
-//   }
-//   if (!this->cgi.body.empty()) {
-//     this->cgi.body.clear();
-//   }
-//   if (this->cgi.contentLength != 0) {
-//     this->cgi.contentLength = 0;
-//   }
-//   if (!this->cgi.contentType.empty()) {
-//     this->cgi.contentType.clear();
-//   }
+/**
+ * Clears all request data before parsing a new request
+ */
+void Request::clearRequestData() {
+    // Clear main request data
+    if (!this->request.empty()) {
+        this->request.clear();
+    }
+    if (!this->path.empty()) {
+        this->path.clear();
+    }
+    if (!this->httpV.empty()) {
+        this->httpV.clear();
+    }
+    
+    // Clear CGI data
+    if (!this->cgi.host.empty()) this->cgi.host.clear();
+    if (!this->cgi.port.empty()) this->cgi.port.clear();
+    if (!this->cgi.method.empty()) this->cgi.method.clear();
+    if (!this->cgi.scriptPath.empty()) this->cgi.scriptPath.clear();
+    if (!this->cgi.pathInfo.empty()) this->cgi.pathInfo.clear();
+    if (!this->cgi.query.empty()) this->cgi.query.clear();
+    if (!this->cgi.headers.empty()) this->cgi.headers.clear();
+    if (!this->cgi.body.empty()) this->cgi.body.clear();
+    if (!this->cgi.contentType.empty()) this->cgi.contentType.clear();
+    this->cgi.contentLength = 0;
+    
+    _foundCookie = false;
+}
 
-//   bool iFoundCookie = false;
-//   std::stringstream ss(req);
+/**
+ * Parses the first line of HTTP request (method, path, version)
+ * Returns true if parsing was successful
+ */
+bool Request::parseRequestLine(const std::string& line) {
+    std::stringstream firstLine(line);
+    std::string reqMethod;
+    
+    // Extract method
+    firstLine >> reqMethod;
+    if (reqMethod == "GET") {
+        this->method = "GET";
+    } else if (reqMethod == "POST") {
+        this->method = "POST";
+    } else if (reqMethod == "DELETE") {
+        this->method = "DELETE";
+    } else {
+        this->method = "ERROR";
+        return false;
+    }
+    
+    // Extract path and HTTP version
+    firstLine >> this->path >> this->httpV;
+    
+    // Validate HTTP version
+    if (this->httpV != "HTTP/1.0" && this->httpV != "HTTP/1.1") {
+        this->method = "ERROR";
+        return false;
+    }
+    
+    return true;
+}
 
-//   // get method & path & http version
-//   std::string line;
-//   if (std::getline(ss, line)) {
-//     std::stringstream firstLine(line);
-//     std::string reqMethod;
-//     firstLine >> reqMethod;
-//     if (reqMethod == "GET") {
-//       this->method = "GET";
-//     } else if (reqMethod == "POST") {
-//       this->method = "POST";
-//     } else if (reqMethod == "DELETE") {
-//       this->method = "DELETE";
-//     } else {
-//       this->method = "ERROR";
-//     }
+/**
+ * Parses all headers from the request
+ * Returns true if headers are valid
+ */
+bool Request::parseHeaders(const std::string& req) {
+    std::stringstream ss(req);
+    std::string line;
+    size_t pos;
+    
+    // Skip the request line (first line)
+    std::getline(ss, line);
+    
+    // Parse headers
+    while (std::getline(ss, line)) {
+        pos = line.find(":");
+        
+        if (pos == std::string::npos) {
+            // Empty line means end of headers
+            if (line == "\r" || line.empty()) {
+                break;
+            }
+            return false;
+        }
+        
+        std::string key = line.substr(0, pos);
+        std::string value = line.substr(pos + 2); // Skip ": "
+        
+        // Remove trailing \r if present
+        if (!value.empty() && value.back() == '\r') {
+            value.pop_back();
+        }
+        
+        // Check if key or value is empty
+        if (key.empty() || value.empty()) {
+            return false;
+        }
+        
+        this->request[key] = value;
+    }
+    
+    return true;
+}
 
-//     firstLine >> this->path >> this->httpV;
+/**
+ * Validates required headers and stores them
+ */
+void Request::validateAndStoreRequest() {
+    // Validate Host header
+    auto itHost = this->request.find("Host");
+    if (itHost == this->request.end()) {
+        this->method = "ERROR";
+        return;
+    }
+    
+    // Parse host and port from Host header
+    std::string hostValue = itHost->second;
+    size_t posHost = hostValue.find(":");
+    
+    if (posHost != std::string::npos) {
+        std::string domainName = hostValue.substr(0, posHost);
+        if (domainName != "localhost" && domainName != this->conf.host) {
+            this->method = "ERROR";
+            return;
+        }
+        
+        int reqListen = std::atoi(hostValue.substr(posHost + 1).c_str());
+        auto it = std::find(this->conf.listen.begin(), 
+                           this->conf.listen.end(), reqListen);
+        if (it == this->conf.listen.end()) {
+            this->method = "ERROR";
+            return;
+        }
+    } else {
+        this->method = "ERROR";
+        return;
+    }
+    
+    // Validate Content-Length for POST requests
+    if (this->method == "POST") {
+        auto itContentLength = this->request.find("Content-Length");
+        if (itContentLength == this->request.end()) {
+            this->method = "ERROR";
+            return;
+        }
+        int contentLengthValue = std::atoi(itContentLength->second.c_str());
+        if (contentLengthValue < 0) {
+            this->method = "ERROR";
+            return;
+        }
+    }
+    
+    // Check if client sent cookies
+    if (this->request.find("Cookie") != this->request.end()) {
+        _foundCookie = true;
+    }
+}
 
-//     // check http version
-//     if (this->httpV != "HTTP/1.0" && this->httpV != "HTTP/1.1") {
-//       this->method = "ERROR"; // return BAD_REQUEST
-//     }
+/**
+ * Parses the request body and stores it
+ */
+void Request::parseBody(const std::string& req) {
+    size_t pos = req.find("\r\n\r\n");
+    if (pos == std::string::npos) {
+        return;
+    }
+    
+    std::string body = req.substr(pos + 4);
+    if (!body.empty()) {
+        this->request["post-body"] = body;
+    }
+}
 
-//     // check if request is CGI
-//     this->checkCGI(this->path);
-//   }
+/**
+ * Processes multipart/form-data for file uploads
+ * Extracts filename and binary data
+ */
+void Request::processMultipartBody() {
+    // Check if content type is multipart/form-data
+    std::string contentType = this->request.count("Content-Type") 
+                              ? this->request["Content-Type"] 
+                              : "";
+    
+    if (contentType.substr(0, 52) != "multipart/form-data; boundary=----WebKitFormBoundary") {
+        return;
+    }
+    
+    std::string& postBody = this->request["post-body"];
+    
+    // Find Content-Disposition
+    size_t pos = postBody.find("Content-Disposition: ");
+    if (pos == std::string::npos) {
+        std::cerr << "Content-Disposition not found" << std::endl;
+        return;
+    }
+    
+    // Find filename
+    pos = postBody.find("filename=\"", pos);
+    if (pos == std::string::npos) {
+        std::cerr << "filename not found" << std::endl;
+        return;
+    }
+    
+    // Extract filename
+    size_t start = pos + 10;
+    size_t end = postBody.find("\"", start);
+    std::string filename = postBody.substr(start, end - start);
+    this->request["filename"] = filename;
+    
+    // Find binary data start
+    pos = postBody.find("\r\n\r\n", end);
+    if (pos == std::string::npos) {
+        std::cerr << "binary data not found" << std::endl;
+        return;
+    }
+    
+    // Find last boundary
+    end = postBody.rfind("\r\n------WebKitFormBoundary");
+    if (end == std::string::npos) {
+        std::cerr << "last boundary not found" << std::endl;
+        return;
+    }
+    
+    // Extract binary data
+    start = pos + 4;
+    std::string binaryData = postBody.substr(start, end - start);
+    
+    if (!binaryData.empty()) {
+        this->request["binary-data"] = binaryData;
+    } else {
+        this->request.erase("binary-data");
+    }
+}
 
-//   // get the headers
-//   std::string key, value;
-//   size_t pos;
-//   while (std::getline(ss, line)) {
-//     pos = line.find(":");
+/**
+ * Sets up CGI information if request is a CGI request
+ */
+void Request::setupCgiInfo() {
+    // Copy host
+    auto hostIt = this->request.find("Host");
+    if (hostIt != this->request.end()) {
+        std::string hostValue = hostIt->second;
+        size_t colonPos = hostValue.find(":");
+        this->cgi.host = (colonPos != std::string::npos) 
+                         ? hostValue.substr(0, colonPos) 
+                         : "";
+        this->cgi.port = (colonPos != std::string::npos) 
+                         ? hostValue.substr(colonPos + 1) 
+                         : "";
+    }
+    
+    // Copy method
+    this->cgi.method = this->getMethodByName(this->method);
+    
+    // Copy headers
+    this->cgi.headers = this->request;
+    
+    // Copy body
+    auto bodyIt = this->request.find("post-body");
+    this->cgi.body = (bodyIt != this->request.end()) ? bodyIt->second : "";
+    
+    // Copy content length
+    auto contentLengthIt = this->request.find("Content-Length");
+    this->cgi.contentLength = (contentLengthIt != this->request.end())
+                              ? std::strtol(contentLengthIt->second.c_str(), NULL, 10)
+                              : 0;
+    
+    // Copy content type
+    auto contentTypeIt = this->request.find("Content-Type");
+    this->cgi.contentType = (contentTypeIt != this->request.end()) 
+                            ? contentTypeIt->second 
+                            : "";
+}
 
-//     if (pos == std::string::npos) {
-//       if (line != "\r") {
-//         this->method = "ERROR";
-//       }
-//       break;
-//     }
-
-//     key = line.substr(0, pos);
-//     value = line.substr(pos + 2, line.length());
-
-//     // check if key or value is empty
-//     if (key.empty() || value.empty()) {
-//       this->method = "ERROR"; // return BAD_REQUEST
-//     }
-
-//     this->request[key] = value;
-//   }
-
-//   // check if we have host header
-//   std::map<std::string, std::string>::iterator itHost =
-//       this->request.find("Host");
-//   if (itHost != this->request.end()) {
-//     // check host and port
-//     // check host
-//     size_t posHost;
-
-//     std::string hostValue = itHost->second;
-//     posHost = hostValue.find(":");
-//     if (posHost != std::string::npos) {
-//       std::string domainName = hostValue.substr(0, posHost);
-//       if (domainName != "localhost") {
-//         if (domainName != this->conf.host) {
-//           this->method = "ERROR"; // return BAD_REQUEST
-//         }
-//       }
-
-//       int reqListen = std::atoi(hostValue.substr(posHost + 1).c_str());
-//       std::vector<int>::iterator it = std::find(
-//           this->conf.listen.begin(), this->conf.listen.end(), reqListen);
-//       if (it == this->conf.listen.end()) {
-//         this->method = "ERROR"; // return BAD_REQUEST
-//       }
-//     } else {
-//       this->method = "ERROR"; // return BAD_REQUEST
-//     }
-//   } else {
-//     this->method = "ERROR"; // return BAD_REQUEST
-//   }
-
-//   // check the Content-Length in method post
-//   if (this->method == "POST") {
-//     std::map<std::string, std::string>::iterator itContentLength =
-//         this->request.find("Content-Length");
-//     if (itContentLength != this->request.end()) {
-//       int contentLengthValue = std::atoi(itContentLength->second.c_str());
-//       if (contentLengthValue < 0) {
-//         this->method = "ERROR"; // return BAD_REQUEST
-//       }
-
-//     } else {
-//       this->method = "ERROR"; // return BAD_REQUEST
-//     }
-//   }
-
-//   // check if client send cookies
-//   std::map<std::string, std::string>::iterator itCookie =
-//       this->request.find("Cookie");
-//   if (itCookie != this->request.end()) {
-//     iFoundCookie = true;
-//   }
-
-//   // get the body
-//   pos = req.find("\r\n\r\n");
-//   if (pos == std::string::npos) {
-//     return;
-//   }
-
-//   value = req.substr(pos + 4, req.length());
-
-//   if (!value.empty()) {
-//     key = "post-body";
-//     this->request[key] = value;
-//   }
-
-//   // Parse Body
-
-//   std::string contentType =
-//       this->request.count("Content-Type") ? this->request["Content-Type"] : "";
-//   if (contentType.substr(0, 52) ==
-//       "multipart/form-data; boundary=----WebKitFormBoundary") {
-
-//     // check info of post-body (get file name)
-//     // get file name
-//     pos = this->request["post-body"].find("Content-Disposition: ");
-//     // * check if not found Content-Disposition
-//     if (pos == std::string::npos) {
-//       std::cerr << "Content-Disposition not found" << std::endl;
-//       return;
-//     }
-
-//     pos = this->request["post-body"].find("filename=\"", pos);
-//     while ((pos = this->request["post-body"].find("filename=\"", pos)) !=
-//            std::string::npos) {
-//       if (this->request["post-body"][pos - 1] != '"') {
-//         break;
-//       }
-//       pos++;
-//     }
-
-//     if (pos == std::string::npos) {
-//       std::cerr << "filename not found" << std::endl;
-//       return;
-//     }
-
-//     size_t start = pos + 10;
-//     size_t end = this->request["post-body"].find("\"", start);
-//     key = "filename";
-//     value = this->request["post-body"].substr(start, end - start);
-//     this->request[key] = value;
-
-//     // get binary data of file
-//     pos = this->request["post-body"].find("\r\n\r\n", end);
-//     if (pos == std::string::npos) {
-//       std::cerr << "binary data of file not found" << std::endl;
-//       return;
-//     }
-
-//     // find last boundary
-//     end = this->request["post-body"].rfind("\r\n------WebKitFormBoundary");
-//     if (end == std::string::npos) {
-//       std::cerr << "last boundary not found" << std::endl;
-//       return;
-//     }
-
-//     key = "binary-data";
-//     start = pos + 4;
-//     value = this->request["post-body"].substr(start, end - start);
-
-//     if (!value.empty()) {
-//       this->request[key] = value;
-//     } else {
-//       // handle the empty file when you upload a non empty file and after that
-//       // you remove all data and get it again
-//       this->request.erase(key);
-//     }
-//   }
-
-//   // remove Cookies from request (because when the user remove it from browser
-//   // it still store it in request map)
-//   if (!iFoundCookie) {
-//     this->request.erase("Cookie");
-//   }
-
-//   if (this->getIsCGI()) {
-//     // copy host of request to cgi host
-//     this->cgi.host = this->request.count("Host")
-//                          ? request.find("Host")->second.substr(
-//                                0, this->request.find("Host")->second.find(":"))
-//                          : "";
-//     // copy listen of request to cgi listen
-//     this->cgi.port = this->request.count("Host")
-//                          ? request.find("Host")->second.substr(
-//                                this->request.find("Host")->second.find(":") + 1)
-//                          : "";
-//     // copy method of request to cgi method
-//     this->cgi.method = this->getMethodByName(this->method);
-//     // copy headers of request to cgi headers
-//     this->cgi.headers = this->request;
-//     // copy body of request to cgi body
-//     this->cgi.body = this->request.count("post-body")
-//                          ? this->request.find("post-body")->second
-//                          : "";
-//     // add Content Length
-//     this->cgi.contentLength =
-//         this->request.count("Content-Length")
-//             ? std::strtol(this->request.find("Content-Length")->second.c_str(),
-//                           NULL, 10)
-//             : 0;
-//     // copy content type of request to cgi content type
-//     this->cgi.contentType = this->request.count("Content-Type")
-//                                 ? this->request.find("Content-Type")->second
-//                                 : "";
-//   }
-// }
+// Add a private member variable for tracking cookies
+// In Request.hpp add: bool _foundCookie;
 
 
 const std::map<std::string, std::string> &Request::getRequest() const {
