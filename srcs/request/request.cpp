@@ -60,6 +60,40 @@ void Request::setRequest(const std::string &req) {
         setupCgiInfo();
     }
 
+    // print request for debugging
+
+    std::cout << "Request Method: " << this->method << std::endl;
+    std::cout << "Request Path: " << this->path << std::endl;
+    std::cout << "Request HTTP Version: " << this->httpV << std::endl;
+    std::cout << "Request Headers: " << std::endl;
+    std::cout << "------------------------" << std::endl;
+    for (const auto& pair : request) {
+        std::cout << "Key: " << pair.first << " => Value: " << pair.second << std::endl;
+    }
+    std::cout << "------------------------" << std::endl;
+    for (const auto& pair : session) {
+    std::cout << "Key: " << pair.first << " => Value: " << pair.second << std::endl;
+    }
+    std::cout << "------------------------" << std::endl;
+    std::cout << "Is CGI Request: " << (this->getIsCGI() ? "Yes" : "No") << std::endl;
+    std::cout << "------------------------" << std::endl;
+    std::cout << "CGI Info: " << std::endl;
+    std::cout << "Host: " << this->cgi.host << std::endl;
+    std::cout << "Port: " << this->cgi.port << std::endl;
+    std::cout << "Method: " << this->cgi.method << std::endl;
+    std::cout << "Script Path: " << this->cgi.scriptPath << std::endl;
+    std::cout << "Path Info: " << this->cgi.pathInfo << std::endl;
+    std::cout << "Query: " << this->cgi.query << std::endl;
+    for (const auto& pair : cgi.headers) {
+        std::cout << "Key: " << pair.first << " => Value: " << pair.second << std::endl;
+    }
+    std::cout << "Body: " << this->cgi.body << std::endl;
+    std::cout << "Content Length: " << this->cgi.contentLength << std::endl;
+    std::cout << "Content Type: " << this->cgi.contentType << std::endl;
+    std::cout << "------------------------" << std::endl;
+    std::cout << "Request Parsing Completed" << std::endl;
+    std::cout << "========================" << std::endl;
+    std::cout << std::endl;
 }
 
 /**
@@ -119,6 +153,7 @@ bool Request::parseRequestLine(const std::string& line) {
     // Validate HTTP version
     if (this->httpV != "HTTP/1.0" && this->httpV != "HTTP/1.1") {
         this->method = "ERROR";
+
         return false;
     }
     
@@ -176,6 +211,7 @@ void Request::validateAndStoreRequest() {
     auto itHost = this->request.find("Host");
     if (itHost == this->request.end()) {
         this->method = "ERROR";
+
         return;
     }
     
@@ -195,6 +231,7 @@ void Request::validateAndStoreRequest() {
                            this->conf.listen.end(), reqListen);
         if (it == this->conf.listen.end()) {
             this->method = "ERROR";
+
             return;
         }
     } else {

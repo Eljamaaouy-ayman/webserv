@@ -91,9 +91,9 @@ class Request{
     const bool &getIsCGI() const;
 
     bool pathGCIisFile(std::string path);
-	void	setCgiResponse(const std::string& cgiResponse);
-	const std::string& getCgiResponse() const;
-	std::string			getMethodByName(std::string methodName);
+    void	setCgiResponse(const std::string& cgiResponse);
+    const std::string& getCgiResponse() const;
+    std::string			getMethodByName(std::string methodName);
 };
 
 
