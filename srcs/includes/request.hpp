@@ -84,7 +84,7 @@ class Request{
     void setRequest(const std::string &req);
     const std::map<std::string, std::string> &getRequest() const;
 
-    void setSession(const std::string session_id, const std::string value);
+    void setSession(const std::string value);
     const std::map<std::string, std::string> &getSession() const;
     
     void checkCGI(std::string path);

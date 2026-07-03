@@ -8,7 +8,7 @@ Request::Request() : method("ELSE"), path(""), httpV(""), isCGI(false), _foundCo
 
   std::stringstream ss;
   ss << sessionId;
-  this->setSession("session_id", ss.str());
+  this->setSession(ss.str());
 }
 
 // Default Constructor of struct CgiInfo
@@ -43,12 +43,15 @@ void Request::setRequest(const std::string &req) {
     
     // Validate required headers (Host, Content-Length for POST)
     validateAndStoreRequest();
-    
+    // heeere we are ============;
     // Parse body if exists
     parseBody(req);
     
     // Handle multipart/form-data (file uploads)
     processMultipartBody();
+    for (const auto& pair : request) {
+        std::cout << "Key: " << pair.first << std::endl;
+    }
     
     // Remove Cookie if not present in request
     if (!_foundCookie) {
@@ -62,38 +65,38 @@ void Request::setRequest(const std::string &req) {
 
     // print request for debugging
 
-    std::cout << "Request Method: " << this->method << std::endl;
-    std::cout << "Request Path: " << this->path << std::endl;
-    std::cout << "Request HTTP Version: " << this->httpV << std::endl;
-    std::cout << "Request Headers: " << std::endl;
-    std::cout << "------------------------" << std::endl;
-    for (const auto& pair : request) {
-        std::cout << "Key: " << pair.first << " => Value: " << pair.second << std::endl;
-    }
-    std::cout << "------------------------" << std::endl;
-    for (const auto& pair : session) {
-    std::cout << "Key: " << pair.first << " => Value: " << pair.second << std::endl;
-    }
-    std::cout << "------------------------" << std::endl;
-    std::cout << "Is CGI Request: " << (this->getIsCGI() ? "Yes" : "No") << std::endl;
-    std::cout << "------------------------" << std::endl;
-    std::cout << "CGI Info: " << std::endl;
-    std::cout << "Host: " << this->cgi.host << std::endl;
-    std::cout << "Port: " << this->cgi.port << std::endl;
-    std::cout << "Method: " << this->cgi.method << std::endl;
-    std::cout << "Script Path: " << this->cgi.scriptPath << std::endl;
-    std::cout << "Path Info: " << this->cgi.pathInfo << std::endl;
-    std::cout << "Query: " << this->cgi.query << std::endl;
-    for (const auto& pair : cgi.headers) {
-        std::cout << "Key: " << pair.first << " => Value: " << pair.second << std::endl;
-    }
-    std::cout << "Body: " << this->cgi.body << std::endl;
-    std::cout << "Content Length: " << this->cgi.contentLength << std::endl;
-    std::cout << "Content Type: " << this->cgi.contentType << std::endl;
-    std::cout << "------------------------" << std::endl;
-    std::cout << "Request Parsing Completed" << std::endl;
-    std::cout << "========================" << std::endl;
-    std::cout << std::endl;
+    // std::cout << "Request Method: " << this->method << std::endl;
+    // std::cout << "Request Path: " << this->path << std::endl;
+    // std::cout << "Request HTTP Version: " << this->httpV << std::endl;
+    // std::cout << "Request Headers: " << std::endl;
+    // std::cout << "------------------------" << std::endl;
+    // for (const auto& pair : request) {
+    //     std::cout << "Key: " << pair.first << " => Value: " << pair.second << std::endl;
+    // }
+    // std::cout << "------------------------" << std::endl;
+    // for (const auto& pair : session) {
+    // std::cout << "Key: " << pair.first << " => Value: " << pair.second << std::endl;
+    // }
+    // std::cout << "------------------------" << std::endl;
+    // std::cout << "Is CGI Request: " << (this->getIsCGI() ? "Yes" : "No") << std::endl;
+    // std::cout << "------------------------" << std::endl;
+    // std::cout << "CGI Info: " << std::endl;
+    // std::cout << "Host: " << this->cgi.host << std::endl;
+    // std::cout << "Port: " << this->cgi.port << std::endl;
+    // std::cout << "Method: " << this->cgi.method << std::endl;
+    // std::cout << "Script Path: " << this->cgi.scriptPath << std::endl;
+    // std::cout << "Path Info: " << this->cgi.pathInfo << std::endl;
+    // std::cout << "Query: " << this->cgi.query << std::endl;
+    // for (const auto& pair : cgi.headers) {
+    //     std::cout << "Key: " << pair.first << " => Value: " << pair.second << std::endl;
+    // }
+    // std::cout << "Body: " << this->cgi.body << std::endl;
+    // std::cout << "Content Length: " << this->cgi.contentLength << std::endl;
+    // std::cout << "Content Type: " << this->cgi.contentType << std::endl;
+    // std::cout << "------------------------" << std::endl;
+    // std::cout << "Request Parsing Completed" << std::endl;
+    // std::cout << "========================" << std::endl;
+    // std::cout << std::endl;
 }
 
 /**
@@ -153,10 +156,8 @@ bool Request::parseRequestLine(const std::string& line) {
     // Validate HTTP version
     if (this->httpV != "HTTP/1.0" && this->httpV != "HTTP/1.1") {
         this->method = "ERROR";
-
         return false;
     }
-    
     return true;
 }
 
@@ -171,7 +172,7 @@ bool Request::parseHeaders(const std::string& req) {
     
     // Skip the request line (first line)
     std::getline(ss, line);
-    
+
     // Parse headers
     while (std::getline(ss, line)) {
         pos = line.find(":");
@@ -211,7 +212,6 @@ void Request::validateAndStoreRequest() {
     auto itHost = this->request.find("Host");
     if (itHost == this->request.end()) {
         this->method = "ERROR";
-
         return;
     }
     
@@ -231,7 +231,6 @@ void Request::validateAndStoreRequest() {
                            this->conf.listen.end(), reqListen);
         if (it == this->conf.listen.end()) {
             this->method = "ERROR";
-
             return;
         }
     } else {
@@ -333,6 +332,19 @@ void Request::processMultipartBody() {
     } else {
         this->request.erase("binary-data");
     }
+    // almost like this :
+    // POST /upload HTTP/1.1
+    // Host: example.com
+    // Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+    // Content-Length: 12345
+
+    // ----WebKitFormBoundary7MA4YWxkTrZu0gW
+    // Content-Disposition: form-data; name="avatar"; filename="profile.jpg"
+    // Content-Type: image/jpeg
+
+    // [binary JPEG data here]
+    // ----WebKitFormBoundary7MA4YWxkTrZu0gW--
+
 }
 
 /**
@@ -385,9 +397,9 @@ const std::map<std::string, std::string> &Request::getRequest() const {
 
 // Session
 
-void Request::setSession(const std::string session_id,
+void Request::setSession(
                          const std::string value) {
-  this->session[session_id] = value;
+  this->session["session_id"] = value;
 }
 
 const std::map<std::string, std::string> &Request::getSession() const {
@@ -404,16 +416,16 @@ void Request::checkCGI(std::string path) {
   // check the request is cgi
   size_t pos = path.find("/");
   if (pos == std::string::npos || path.substr(0, pos) != "cgi-bin") {
-    std::cout << "Request is not CGI" << std::endl;
+    // std::cout << "Request is not CGI" << std::endl;
     return;
   }
 
   // check folder cgi-bin is in root folder
-  std::ifstream cgiFolder(
-      (this->conf.root + "/" + path.substr(0, pos)).c_str());
+  std::ifstream cgiFolder((this->conf.root + "/" + path.substr(0, pos)).c_str());
   if (!cgiFolder.is_open()) {
     return;
   }
+
 
   // find script path and queries
   size_t posPathInfo = path.find("/", pos + 1);
@@ -421,8 +433,7 @@ void Request::checkCGI(std::string path) {
 
   // First, handle the script path
   if (posPathInfo != std::string::npos) {
-    this->cgi.scriptPath =
-        this->conf.root + "/" + path.substr(0, posPathInfo);
+    this->cgi.scriptPath = this->conf.root + "/" + path.substr(0, posPathInfo);
   } else if (pos != std::string::npos) {
     this->cgi.scriptPath = this->conf.root + "/" + path.substr(0, pos);
   } else {
