@@ -9,6 +9,8 @@
 
 #include "../includes/server.hpp"
 #include "../includes/request.hpp"
+#include "../includes/RequestHandler.hpp"
+#include "../includes/HttpResponse.hpp"
 
 int Server::_create_server_socket(int port)
 {
@@ -87,12 +89,12 @@ void Server::run(Request request)
 	while (true)
 	{
 		if (poll(_fds.data(), _fds.size(), -1) < 0)
-			throw std::runtime_error("poll() failed");
-
+		throw std::runtime_error("poll() failed");
+		
 		for (size_t i = 0; i < _fds.size(); ++i)
 		{
 			int fd = _fds[i].fd;
-
+			
 			if (_fds[i].revents & POLLIN)
 			{
 				if (_is_server_fd(fd))
@@ -104,15 +106,28 @@ void Server::run(Request request)
 				ssize_t n = recv(fd, buffer, 1024, 0);
 				if (n > 0)
 				{
-					buffer[n] = '\0';
-					_clients[fd].read_buff += buffer;
+					_clients[fd].read_buff.append(buffer, n);
+
+					// std::cout << "=== RECEIVED DATA ===" << std::endl;
+        			// std::cout << buffer << std::endl;
+        			// std::cout << "=====================" << std::endl;
+
 					if (_clients[fd].is_request_complete())
 					{
-						std::cout << _clients[fd].read_buff << std::endl;
+						// std::cout << _clients[fd].read_buff << std::endl;
 						request.setRequest(_clients[fd].read_buff);
+						
+						// DEBUG: Print parsed request
+						// std::cout << "=== REQUEST PARSED ===" << std::endl;
+            			// std::cout << "Method: " << request.method << std::endl;
+            			// std::cout << "Path: " << request.path << std::endl;
+            			// std::cout << "=====================" << std::endl;
+						
 						// http_parse(_clients[fd].read_buff) goes here
-						_clients[fd].write_buff = "Echo: " + _clients[fd].read_buff;
+						_clients[fd].write_buff = RequestHandler::handleRequest(request).build();
+						// std::cout << _clients[fd].write_buff << std::endl;
 						_fds[i].events |= POLLOUT;
+						_clients[fd].read_buff.clear();
 					}
 				}
 				else

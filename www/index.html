@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>webserv</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav>
+    <a href="index.html" class="active">Home</a>
+    <a href="login.html" data-auth="guest">Login</a>
+    <a href="register.html" data-auth="guest">Register</a>
+    <a href="upload.html">Upload</a>
+    <a href="button.html">Test Actions</a>
+    <a href="#" id="logoutLink" data-auth="user">Logout</a>
+  </nav>
+  <main>
+    <div class="hero">
+      <h1>webserv</h1>
+      <p>A minimal C++ HTTP server test front-end &mdash; use these pages to exercise <code>RequestHandler</code>, session handling, and multipart uploads.</p>
+      <div class="actions" data-auth="guest">
+        <a href="login.html" class="btn">Login</a>
+        <a href="register.html" class="btn secondary">Register</a>
+      </div>
+      <div class="actions" data-auth="user">
+        <a href="upload.html" class="btn">Upload a file</a>
+        <a href="button.html" class="btn secondary">Test Actions</a>
+      </div>
+    </div>
+  </main>
+  <script src="auth.js"></script>
+</body>
+</html>

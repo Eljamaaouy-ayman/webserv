@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Login &mdash; webserv</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="login.html" class="active" data-auth="guest">Login</a>
+    <a href="register.html" data-auth="guest">Register</a>
+    <a href="upload.html">Upload</a>
+    <a href="button.html">Test Actions</a>
+    <a href="#" id="logoutLink" data-auth="user">Logout</a>
+  </nav>
+  <main>
+    <div class="card">
+      <h1>Welcome back</h1>
+      <p class="sub">Log in to your webserv session</p>
+
+      <form id="loginForm" method="POST" action="/login">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" placeholder="jdoe" required>
+
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" required>
+
+        <button type="submit">Log In</button>
+      </form>
+
+      <div id="status" class="status"></div>
+
+      <p class="foot-link">No account? <a href="register.html">Register here</a></p>
+    </div>
+  </main>
+  <script src="auth.js"></script>
+  <script>
+    const form = document.getElementById('loginForm');
+    const status = document.getElementById('status');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      status.className = 'status';
+      status.textContent = 'Logging in...';
+      status.classList.add('show');
+
+      const formData = new FormData(form);
+      const params = new URLSearchParams(formData);
+
+      try {
+        const res = await fetch(form.action, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params
+        });
+        const text = await res.text();
+
+        if (res.ok) {
+          status.className = 'status show ok';
+          status.textContent = `Success (${res.status}): ${text || 'Logged in.'}`;
+          setTimeout(() => { window.location.href = 'index.html'; }, 600);
+        } else {
+          status.className = 'status show err';
+          status.textContent = `Error (${res.status}): ${text || 'Login failed.'}`;
+        }
+      } catch (err) {
+        status.className = 'status show err';
+        status.textContent = `Network error: ${err.message}`;
+      }
+    });
+  </script>
+</body>
+</html>

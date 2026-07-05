@@ -39,9 +39,7 @@ class ConfigFile {
 class Request{
 
   private:
-    std::map<std::string, std::string> request;
-    std::map<std::string, std::string> session;
-	std::string	_cgiResponse;
+    
     bool parseRequestLine(const std::string& line);
     bool parseHeaders(const std::string& req);
     void parseBody(const std::string& req);
@@ -51,6 +49,9 @@ class Request{
     void clearRequestData();
 
   public:
+  std::map<std::string, std::string> request;
+  std::map<std::string, std::string> session;
+	std::string	_cgiResponse;
     std::string method;
     std::string path;
     std::string httpV;

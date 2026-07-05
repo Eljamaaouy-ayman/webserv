@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Register &mdash; webserv</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="login.html" data-auth="guest">Login</a>
+    <a href="register.html" class="active" data-auth="guest">Register</a>
+    <a href="upload.html">Upload</a>
+    <a href="button.html">Test Actions</a>
+    <a href="#" id="logoutLink" data-auth="user">Logout</a>
+  </nav>
+  <main>
+    <div class="card">
+      <h1>Create an account</h1>
+      <p class="sub">Register a new webserv user</p>
+
+      <form id="registerForm" method="POST" action="/register">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" placeholder="jdoe" required>
+
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" placeholder="jdoe@example.com" required>
+
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" required>
+
+        <label for="confirm">Confirm password</label>
+        <input type="password" id="confirm" name="confirm" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" required>
+
+        <button type="submit">Register</button>
+      </form>
+
+      <div id="status" class="status"></div>
+
+      <p class="foot-link">Already have an account? <a href="login.html">Log in</a></p>
+    </div>
+  </main>
+  <script src="auth.js"></script>
+  <script>
+    const form = document.getElementById('registerForm');
+    const status = document.getElementById('status');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const pass = document.getElementById('password').value;
+      const confirm = document.getElementById('confirm').value;
+
+      if (pass !== confirm) {
+        status.className = 'status show err';
+        status.textContent = 'Passwords do not match.';
+        return;
+      }
+
+      status.className = 'status show';
+      status.textContent = 'Registering...';
+
+      const formData = new FormData(form);
+      formData.delete('confirm');
+      const params = new URLSearchParams(formData);
+
+      try {
+        const res = await fetch(form.action, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params
+        });
+        const text = await res.text();
+
+        if (res.ok) {
+          status.className = 'status show ok';
+          status.textContent = `Success (${res.status}): ${text || 'Account created.'}`;
+        } else {
+          status.className = 'status show err';
+          status.textContent = `Error (${res.status}): ${text || 'Registration failed.'}`;
+        }
+      } catch (err) {
+        status.className = 'status show err';
+        status.textContent = `Network error: ${err.message}`;
+      }
+    });
+  </script>
+</body>
+</html>

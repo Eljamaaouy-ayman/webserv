@@ -49,9 +49,9 @@ void Request::setRequest(const std::string &req) {
     
     // Handle multipart/form-data (file uploads)
     processMultipartBody();
-    for (const auto& pair : request) {
-        std::cout << "Key: " << pair.first << std::endl;
-    }
+    // for (const auto& pair : request) {
+    //     std::cout << "Key: " << pair.first << std::endl;
+    // }
     
     // Remove Cookie if not present in request
     if (!_foundCookie) {

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Test Actions &mdash; webserv</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="login.html" data-auth="guest">Login</a>
+    <a href="register.html" data-auth="guest">Register</a>
+    <a href="upload.html">Upload</a>
+    <a href="button.html" class="active">Test Actions</a>
+    <a href="#" id="logoutLink" data-auth="user">Logout</a>
+  </nav>
+  <main>
+    <div class="card" style="max-width: 480px;">
+      <h1>Request buttons</h1>
+      <p class="sub">Fire raw requests at your server and inspect the response</p>
+
+      <div class="grid">
+        <button data-method="GET" data-path="/">GET /</button>
+        <button data-method="GET" data-path="/session">GET /session</button>
+        <button data-method="POST" data-path="/logout">POST /logout</button>
+      </div>
+
+      <label for="deleteFilename" style="margin-top: 20px;">Delete an uploaded file</label>
+      <div style="display: flex; gap: 8px; align-items: flex-start;">
+        <input type="text" id="deleteFilename" placeholder="filename.txt" style="flex: 1;">
+        <button class="danger" id="deleteBtn" style="width: auto; margin-top: 0; white-space: nowrap;">Delete</button>
+      </div>
+
+      <div class="log" id="log">Responses will appear here...</div>
+    </div>
+  </main>
+  <script src="auth.js"></script>
+  <script>
+    const log = document.getElementById('log');
+
+    function logResult(method, path, promise) {
+      const time = new Date().toLocaleTimeString();
+      log.textContent = `[${time}] ${method} ${path} ...\n` + log.textContent;
+
+      promise
+        .then(async (res) => {
+          const text = await res.text();
+          log.textContent = `[${time}] ${method} ${path} -> ${res.status} ${res.statusText}\n${text.slice(0, 300)}\n\n` + log.textContent;
+        })
+        .catch((err) => {
+          log.textContent = `[${time}] ${method} ${path} -> network error: ${err.message}\n\n` + log.textContent;
+        });
+    }
+
+    document.querySelectorAll('button[data-method]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const method = btn.dataset.method;
+        const path = btn.dataset.path;
+        logResult(method, path, fetch(path, { method }));
+      });
+    });
+
+    document.getElementById('deleteBtn').addEventListener('click', () => {
+      const filename = document.getElementById('deleteFilename').value.trim();
+      if (!filename) {
+        const time = new Date().toLocaleTimeString();
+        log.textContent = `[${time}] DELETE -> please enter a filename first\n\n` + log.textContent;
+        return;
+      }
+      const path = `/upload/${encodeURIComponent(filename)}`;
+      logResult('DELETE', path, fetch(path, { method: 'DELETE' }));
+    });
+  </script>
+</body>
+</html>
