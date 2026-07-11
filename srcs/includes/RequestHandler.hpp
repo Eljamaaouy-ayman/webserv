@@ -5,6 +5,7 @@
 #include "request.hpp"
 #include "SessionManager.hpp"
 #include "CreatePages.hpp"
+#include "includes.hpp"
 #include <sys/stat.h>
 #include <limits.h>
 #include <cstdlib>
@@ -30,7 +31,8 @@ class RequestHandler
 private:
     static std::string resolvePath(const std::string &uri, const std::string &root);
     static bool isMethodAllowed(const std::string &method, location *loc);
-    static std::string extractFormField(const std::string &body, const std::string &field);
+    static std::string urlDecode(std::string &str);
+    static std::string getFieldValue(const std::string &body, const std::string &field);
     static location *getLocation(const std::string &uri, std::vector<location> &locations);
     static HttpResponse errorResponse(int code, ConfigFile &conf);
     static bool isAuthenticated(Request &req);

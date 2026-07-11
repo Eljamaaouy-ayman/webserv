@@ -8,3 +8,5 @@
 #include "server.hpp"
 #include "SessionManager.hpp"
 #include "UserManager.hpp"
+
+std::string trim(const std::string &str);

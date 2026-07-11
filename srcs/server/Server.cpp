@@ -124,6 +124,7 @@ void Server::run(Request request)
             			// std::cout << "=====================" << std::endl;
 						
 						// http_parse(_clients[fd].read_buff) goes here
+						// std::cout << RequestHandler::handleRequest(request).build();
 						_clients[fd].write_buff = RequestHandler::handleRequest(request).build();
 						// std::cout << _clients[fd].write_buff << std::endl;
 						_fds[i].events |= POLLOUT;

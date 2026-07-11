@@ -22,7 +22,6 @@
 
       <div class="grid">
         <button data-method="GET" data-path="/">GET /</button>
-        <button data-method="GET" data-path="/session">GET /session</button>
         <button data-method="POST" data-path="/logout">POST /logout</button>
       </div>
 
@@ -68,7 +67,7 @@
         log.textContent = `[${time}] DELETE -> please enter a filename first\n\n` + log.textContent;
         return;
       }
-      const path = `/upload/${encodeURIComponent(filename)}`;
+      const path = `/uploads/${filename}`;
       logResult('DELETE', path, fetch(path, { method: 'DELETE' }));
     });
   </script>

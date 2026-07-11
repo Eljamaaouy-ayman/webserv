@@ -12,6 +12,7 @@ SRCS = 	./faut_main.cpp \
 		./srcs/response/RequestHandler.cpp \
 		./srcs/response/SessionManager.cpp \
 		./srcs/response/UserManager.cpp \
+		./srcs/response/Utils.cpp \
 
 
 

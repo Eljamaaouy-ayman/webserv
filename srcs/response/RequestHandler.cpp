@@ -1,6 +1,7 @@
 #include "../includes/includes.hpp"
 #include <iostream>
 
+
 bool RequestHandler::isAuthenticated(Request &req)
 {
     if (req.request.find("Cookie") == req.request.end())
@@ -75,29 +76,38 @@ std::string RequestHandler::findContentType(const std::string &uri)
     return "application/octet-stream";
 }
 
-std::string RequestHandler::extractFormField(const std::string &body, const std::string &field)
+std::string RequestHandler::urlDecode(std::string &str)
+{
+    std::string result;
+    for (size_t i = 0; i < str.length(); i++)
+    {
+        if (str[i] == '+')
+            result += ' ';
+        else if (str[i] == '%')
+        {
+            if (!(i + 2 < str.length() && std::isxdigit(str[i + 1]) && std::isxdigit(str[i + 2])))
+                throw 400;
+            result += std::strtol(str.substr(i + 1, 2).c_str(), NULL, 16);
+            i += 2;
+        }
+        else
+            result += str[i];
+    }
+    return result;
+}
+
+std::string RequestHandler::getFieldValue(const std::string &body, const std::string &field)
 {
     size_t start = body.find(field + "=");
     if (start == std::string::npos)
         return "";
     start += field.length() + 1;
     size_t end = body.find('&', start);
-    std::string str = body.substr(start, end - start);
+    std::string value = body.substr(start, end - start);
 
-    std::string extractedField;
-    for (size_t i = 0; i < str.length(); i++)
-    {
-        if (str[i] == '+')
-            extractedField += ' ';
-        else if (str[i] == '%' && i + 2 < str.length())
-        {
-            extractedField += std::strtol(str.substr(i + 1, 2).c_str(), NULL, 16);
-            i += 2;
-        }
-        else
-            extractedField += str[i];
-    }
-    return extractedField;
+    std::string decodedValue = urlDecode(value);
+
+    return decodedValue;
 }
 
 std::string RequestHandler::extractBoundary(const std::string &contentType)
@@ -113,7 +123,7 @@ std::string RequestHandler::extractBoundary(const std::string &contentType)
     return "--" + boundary;
 }
 
-location *RequestHandler::getLocation(const std::string &uri, std::vector <location> &locations)
+location *RequestHandler::getLocation(const std::string &uri, std::vector<location> &locations)
 {
     location *match = NULL;
     size_t matchLen = 0;
@@ -214,8 +224,8 @@ std::vector<Part> RequestHandler::parseMultipart(const std::string &body, const 
             size_t colon = header.find(":");
             if (colon == std::string::npos)
                 throw 400;
-            std::string key = header.substr(0, colon);
-            std::string value = header.substr(header.find_first_not_of(" \n\t", colon + 1));
+            std::string key = trim(header.substr(0, colon));
+            std::string value = trim(header.substr((colon + 1)));
             if (key.empty() || value.empty())
                 throw 400;
             newPart.headers[key] = value;
@@ -281,20 +291,20 @@ HttpResponse RequestHandler::handleUpload(Request &req, location *loc)
     std::string root = (loc && !loc->root.empty()) ? loc->root : req.conf.root;
     HttpResponse response;
 
-        std::string boundary = extractBoundary(req.request["Content-Type"]);
-        std::vector<Part> parts = parseMultipart(req.request["post-body"], boundary);
-        if (parts.empty())
-            throw 400;
-        for (size_t i = 0; i < parts.size(); i++)
-        {
-            std::string filepath = root + "/uploads/" + parts[i].filename;
-            std::ofstream file(filepath.c_str(), std::ios::binary);
-            if (file.is_open() == false)
-                throw 500;
-            file.write(parts[i].body.c_str(), parts[i].body.size());
-        }
-        response.setStatusCode(201);
-   
+    std::string boundary = extractBoundary(req.request["Content-Type"]);
+    std::vector<Part> parts = parseMultipart(req.request["post-body"], boundary);
+    if (parts.empty())
+        throw 400;
+    for (size_t i = 0; i < parts.size(); i++)
+    {
+        std::string filepath = root + "/uploads/" + parts[i].filename;
+        std::ofstream file(filepath.c_str(), std::ios::binary);
+        if (file.is_open() == false)
+            throw 500;
+        file.write(parts[i].body.c_str(), parts[i].body.size());
+    }
+    response.setStatusCode(201);
+
     return response;
 }
 
@@ -334,7 +344,7 @@ HttpResponse RequestHandler::handleGET(Request &req, location *loc)
             return response;
         }
         if (!index.empty() && access((path + '/' + index).c_str(), F_OK) == 0)
-        path += '/' + index;
+            path += '/' + index;
         else if (loc && loc->autoindex)
             return handleAutoIndex(path, root);
         else
@@ -359,9 +369,9 @@ HttpResponse RequestHandler::handlePOST(Request &req, location *loc)
     HttpResponse response;
 
     if (req.path == "/login")
-        return (handleLogin(extractFormField(req.request["post-body"], "username"), extractFormField(req.request["post-body"], "password")));
+        return (handleLogin(getFieldValue(req.request["post-body"], "username"), getFieldValue(req.request["post-body"], "password")));
     else if (req.path == "/register")
-        return (handleRegister(extractFormField(req.request["post-body"], "username"), extractFormField(req.request["post-body"], "password")));
+        return (handleRegister(getFieldValue(req.request["post-body"], "username"), getFieldValue(req.request["post-body"], "password")));
     else if (req.request["Content-Type"].find("multipart/form-data") != std::string::npos)
         return handleUpload(req, loc);
     return errorResponse(415, req.conf);
@@ -372,8 +382,9 @@ HttpResponse RequestHandler::handleDELETE(Request &req, location *loc)
 
     std::string root = (loc && !loc->root.empty()) ? loc->root : req.conf.root;
     std::string path;
-    
-    path = resolvePath(req.path, root);
+
+    // std::cout << "requested path: " << req.path << std::endl;
+    path = resolvePath(urlDecode(req.path), root);
 
     if (isDirectory(path))
         throw 403;
@@ -388,7 +399,11 @@ HttpResponse RequestHandler::handleRequest(Request &req)
 {
     HttpResponse response;
     location *loc = getLocation(req.path, req.conf.locations);
-
+    if(req.request["post-body"].size() > req.conf.client_max_size_body) 
+        return errorResponse(413, req.conf);
+    if(req.method == "ERROR")
+        return errorResponse(400, req.conf);
+    
     if (loc && !loc->return_to.empty())
     {
         response.addHeader("Location", loc->return_to);
@@ -396,7 +411,7 @@ HttpResponse RequestHandler::handleRequest(Request &req)
         return response;
     }
     else if (isMethodAllowed(req.method, loc) == false)
-        throw 405;
+        return errorResponse(405, req.conf);
 
     if (req.path == "/upload.html" && !isAuthenticated(req))
     {
@@ -406,16 +421,17 @@ HttpResponse RequestHandler::handleRequest(Request &req)
     }
     try
     {
+        // std::cout << "requested path: " << req.path << std::endl;
         if (req.method == "GET")
             return handleGET(req, loc);
         else if (req.method == "POST")
             return handlePOST(req, loc);
         else if (req.method == "DELETE")
-            return handleDELETE(req, loc); 
+            return handleDELETE(req, loc);
     }
-    catch(int e)
+    catch (int e)
     {
-        return errorResponse(e, req.conf); 
+        return errorResponse(e, req.conf);
     }
     return errorResponse(501, req.conf);
 }
