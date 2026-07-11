@@ -28,7 +28,10 @@ void location_parsing(std::vector<std::string> &tokens, std::vector<std::string>
             {
                 if (i->compare("delete") && i->compare("post") && i->compare("get"))
                     throw std::runtime_error("not the best methods in the location");
-                returned_loc.allow_methods.push_back(*i);
+                std::string& method = *i;
+                for(int j = 0; j < method.length(); j++)
+                    method[j] = std::toupper(method[j]);
+                returned_loc.allow_methods.push_back(method);
                 i++;
             }
             check_semicolon(i);
@@ -123,8 +126,8 @@ void   get_config_server(std::vector<std::string> &tokens, ConfigFile &conf){
                 i++;
                 check_semicolon(i);
             }
-            // else if (!i->compare("location"))
-            //     location_parsing(tokens, i, conf);
+            else if (!i->compare("location"))
+                location_parsing(tokens, i, conf);
             else if (!i->compare("index"))
             {
                 i++;

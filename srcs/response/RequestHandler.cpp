@@ -39,7 +39,7 @@ bool RequestHandler::isDirectory(const std::string &path)
 
 bool RequestHandler::isMethodAllowed(const std::string &method, location *loc)
 {
-    if (loc == NULL || loc->allow_methods.empty())
+    if (loc == NULL)
         return true;
     for (size_t i = 0; i < loc->allow_methods.size(); i++)
     {
