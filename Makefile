@@ -6,6 +6,7 @@ SRCS = 	./faut_main.cpp \
 		./srcs/conf_file_parsing/pars_conf_file.cpp \
 		./srcs/server/Server.cpp \
 		./srcs/server/Client.cpp \
+		./srcs/cgi/Cgi.cpp \
 		./srcs/request/request.cpp \
 		./srcs/response/CreatePages.cpp \
 		./srcs/response/HttpResponse.cpp \
