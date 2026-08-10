@@ -301,11 +301,12 @@ void Server::run(const Request &request)
 			if (cgiIt != _cgiPipeOwner.end())
 			{
 				int clientFd = cgiIt->second;
+				CgiProcess *cgi = _clients[clientFd].cgi;
 				bool removed = false;
 
-				if (_fds[i].revents & POLLOUT)
+				if (cgi && fd == cgi->stdinFd && (_fds[i].revents & (POLLOUT | POLLERR | POLLHUP)))
 					removed = _serviceCgiStdin(fd, clientFd);
-				else if (_fds[i].revents & POLLIN)
+				else if (cgi && fd == cgi->stdoutFd && (_fds[i].revents & (POLLIN | POLLHUP | POLLERR)))
 					removed = _serviceCgiStdout(fd, clientFd);
 
 				if (removed)
