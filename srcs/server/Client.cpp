@@ -3,19 +3,17 @@
 #include "../includes/Cgi.hpp"
 #include <cstdlib>
 
-// Creates a fresh Client with its own Request and no CGI in flight.
 Client::Client() : request(new Request()), cgi(NULL)
 {
 }
 
-// Deep-copies another Client's Request; never carries over a live CGI.
 Client::Client(const Client &other)
 	: read_buff(other.read_buff), write_buff(other.write_buff),
 	  request(new Request(*other.request)), cgi(NULL)
 {
 }
 
-// Deep-copies another Client's Request into this one, freeing the old one first.
+
 Client &Client::operator=(const Client &other)
 {
 	if (this != &other)
@@ -30,7 +28,6 @@ Client &Client::operator=(const Client &other)
 	return *this;
 }
 
-// Frees this client's Request and, if any, its in-flight CgiProcess.
 Client::~Client()
 {
 	delete request;

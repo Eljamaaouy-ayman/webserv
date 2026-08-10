@@ -21,7 +21,7 @@ std::string Cgi::findInterpreter(const std::string &scriptPath,
     return it->second;
 }
 
-// Builds the CGI meta-variables and HTTP_* header variables as KEY=VALUE strings.
+// Builds the CGI meta-variables and HTTP_* header variables as "KEY=VALUE" strings.
 std::vector<std::string> Cgi::buildEnvp(Request &req)
 {
     std::vector<std::string>envp;
@@ -152,7 +152,7 @@ CgiProcess Cgi::spawnProcess(const std::string &interpreter,
     return proc;
 }
 
-// Validates the extension, builds the environment, spawns the process, and seeds it with the request body.
+// Entry point, validates the extension, builds the environment, spawns the process, and seeds it with the request body.
 CgiProcess Cgi::start(Request &req)
 {
     std::string interpreter = findInterpreter(req.cgi.scriptPath, req.conf.cgi_config);

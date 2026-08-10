@@ -17,11 +17,11 @@ public:
     void run(const Request &request);
 
 private:
-    std::vector<pollfd>   _fds;
+    std::vector<pollfd>   _fds; //listen sockets + client sockets + cgi pipes
     std::map<int, Client> _clients;
     std::vector<int>      _server_fds;
     const ConfigFile      *_conf;
-    std::map<int, int>    _cgiPipeOwner;
+    std::map<int, int>    _cgiPipeOwner; //cgi pipe fd -> which client it belongs to
 
     int  _create_server_socket(int port);
     void _accept_client(int server_fd);
