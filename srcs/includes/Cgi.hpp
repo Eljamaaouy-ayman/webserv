@@ -6,8 +6,6 @@
 #include <sys/types.h>
 #include "request.hpp"
 
-class HttpResponse;
-
 struct CgiProcess
 {
     pid_t pid;
@@ -22,8 +20,6 @@ class Cgi
 {
 public:
     static CgiProcess start(Request &req);
-
-    static HttpResponse parseOutput(const std::string &output);
 
 private:
     static std::string findInterpreter(const std::string &scriptPath,
