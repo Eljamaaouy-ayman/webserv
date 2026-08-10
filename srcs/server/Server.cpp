@@ -189,7 +189,7 @@ void Server::_startCgi(int clientFd)
 
 	struct pollfd *clientPfd = _findPollfd(clientFd);
 	if (clientPfd)
-		clientPfd->events = 0;
+		clientPfd->events = 0;	//so poll wont report anything for it until this gets restored later. This is what stops a 2nd request on the same connection from being read and dispatched while CGI is still running
 }
 
 // Writes as much of the pending request body as the pipe currently accepts.
@@ -232,12 +232,15 @@ bool Server::_serviceCgiStdout(int pipeFd, int clientFd)
 	cgi->stdoutFd = -1;
 	_cgiPipeOwner.erase(pipeFd);
 	_removeFd(pipeFd);
-	_finishCgi(clientFd);
+	_finishCgi(clientFd, n == 0);
 	return true;
 }
 
 // Reaps the CGI child and turns its collected output into the client's response.
-void Server::_finishCgi(int clientFd)
+// ok=false means stdout ended in a real read() error, not clean EOF -- the
+// script's output (if any) can't be trusted, so this sends a 500 instead of
+// trying to parse it as a real response.
+void Server::_finishCgi(int clientFd, bool ok)
 {
 	Client &client = _clients[clientFd];
 	CgiProcess *cgi = client.cgi;
@@ -253,14 +256,22 @@ void Server::_finishCgi(int clientFd)
 	waitpid(cgi->pid, NULL, 0);
 
 	HttpResponse response;
-	try
+	if (!ok)
 	{
-		response = Cgi::parseOutput(cgi->output);
-	}
-	catch (int code)
-	{
-		response.setStatusCode(code);
+		response.setStatusCode(500);
 		response.setErrorPage(client.request->conf);
+	}
+	else
+	{
+		try
+		{
+			response = Cgi::parseOutput(cgi->output);
+		}
+		catch (int code)
+		{
+			response.setStatusCode(code);
+			response.setErrorPage(client.request->conf);
+		}
 	}
 	client.write_buff = response.build();
 
@@ -280,7 +291,7 @@ void Server::run(const Request &request)
 	while (true)
 	{
 		if (poll(_fds.data(), _fds.size(), -1) < 0)
-		throw std::runtime_error("poll() failed");
+			throw std::runtime_error("poll() failed");
 
 		for (size_t i = 0; i < _fds.size(); ++i)
 		{

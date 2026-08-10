@@ -34,5 +34,5 @@ private:
     void _startCgi(int clientFd);
     bool _serviceCgiStdin(int pipeFd, int clientFd);
     bool _serviceCgiStdout(int pipeFd, int clientFd);
-    void _finishCgi(int clientFd);
+    void _finishCgi(int clientFd, bool ok = true);
 };
