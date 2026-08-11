@@ -13,8 +13,8 @@ class Server {
 public:
     Server();
 
-    void init(const std::vector<int>& ports);
-    void run(const Request &request);
+    void init(const std::vector<ConfigFile>& configs);
+    void run();
 
 private:
     static const int CGI_TIMEOUT_SECONDS = 5; //a CGI running longer than this gets killed and answered with 504
@@ -22,7 +22,10 @@ private:
     std::vector<pollfd>   _fds; //listen sockets + client sockets + cgi pipes
     std::map<int, Client> _clients;
     std::vector<int>      _server_fds;
-    const ConfigFile      *_conf;
+    // Which server{} block each listening socket belongs to, decided once at
+    // startup in init() -- every client accepted on a given fd gets that
+    // block's ConfigFile copied straight into its Request
+    std::map<int, const ConfigFile*> _fdConf; //server_fd -> config[x]
     std::map<int, int>    _cgiPipeOwner; //cgi pipe fd -> which client it belongs to
 
     int  _create_server_socket(int port);

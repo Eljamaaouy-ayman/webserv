@@ -19,7 +19,7 @@
 const int Server::CGI_TIMEOUT_SECONDS;
 
 // Constructs the server and makes a broken CGI pipe fail safely instead of raising SIGPIPE.
-Server::Server() : _conf(NULL)
+Server::Server()
 {
 	signal(SIGPIPE, SIG_IGN);
 }
@@ -52,19 +52,27 @@ int Server::_create_server_socket(int port)
 	return fd;
 }
 
-// Opens and registers a listening socket for every configured port.
-void Server::init(const std::vector<int>& ports)
+// Opens and registers a listening socket for every port in every server{}
+// block, and remembers which block each socket belongs to so _accept_client()
+// can hand new clients the right ConfigFile straight away.
+void Server::init(const std::vector<ConfigFile>& configs)
 {
-	for (size_t i = 0; i < ports.size(); ++i)
+	for (size_t i = 0; i < configs.size(); ++i)
 	{
-		int fd = _create_server_socket(ports[i]);
-		_server_fds.push_back(fd);
+		const ConfigFile& conf = configs[i];
 
-		pollfd pfd;
-		pfd.fd = fd;
-		pfd.events = POLLIN;
-		pfd.revents = 0;
-		_fds.push_back(pfd);
+		for (size_t j = 0; j < conf.listen.size(); ++j)
+		{
+			int fd = _create_server_socket(conf.listen[j]);
+			_server_fds.push_back(fd);
+			_fdConf[fd] = &conf;
+
+			pollfd pfd;
+			pfd.fd = fd;
+			pfd.events = POLLIN;
+			pfd.revents = 0;
+			_fds.push_back(pfd);
+		}
 	}
 }
 
@@ -109,7 +117,9 @@ void Server::_accept_client(int server_fd)
 	fcntl(client_fd, F_SETFD, FD_CLOEXEC);
 
 	_clients[client_fd] = Client();
-	_clients[client_fd].request->conf = *_conf;
+	// server_fd tells us exactly which server{} block this client belongs
+	// to -- it was recorded in init() when this listening socket was opened.
+	_clients[client_fd].request->conf = *_fdConf[server_fd];
 
 	pollfd pfd;
 	pfd.fd = client_fd;
@@ -369,10 +379,8 @@ void Server::_timeoutCgi(int clientFd)
 }
 
 // Runs forever: the single poll() loop driving every client socket and CGI pipe.
-void Server::run(const Request &request)
+void Server::run()
 {
-	_conf = &request.conf;
-
 	while (true)
 	{
 		if (poll(_fds.data(), _fds.size(), _cgiPollTimeout()) < 0)

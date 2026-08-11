@@ -66,7 +66,9 @@ class Request{
     std::string path;
     std::string httpV;
     bool isCGI;
-    std::vector<ConfigFile> conf;
+    // The one server{} block that applies to this connection, assigned by
+    // Server::_accept_client() based on which listening port was connected to.
+    ConfigFile conf;
     bool _foundCookie;
 
     // * CGI information

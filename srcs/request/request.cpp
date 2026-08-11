@@ -34,16 +34,16 @@ void Request::setRequest(const std::string &req) {
         // Check if request is CGI
         this->checkCGI(this->path);
     }
-    
+
     // Parse headers
     if (!parseHeaders(req)) {
         this->method = "ERROR";
         return;
     }
-    
+
     // Validate required headers (Host, Content-Length for POST)
     validateAndStoreRequest();
-    // heeere we are ============;
+
     // Parse body if exists
     parseBody(req);
     
@@ -225,9 +225,9 @@ void Request::validateAndStoreRequest() {
             this->method = "ERROR";
             return;
         }
-        
+
         int reqListen = std::atoi(hostValue.substr(posHost + 1).c_str());
-        auto it = std::find(this->conf.listen.begin(), 
+        std::vector<int>::iterator it = std::find(this->conf.listen.begin(),
                            this->conf.listen.end(), reqListen);
         if (it == this->conf.listen.end()) {
             this->method = "ERROR";

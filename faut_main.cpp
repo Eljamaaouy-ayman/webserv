@@ -10,7 +10,7 @@ int main(int ac, char **av)
 	// }
 	try
 	{
-		Request request;
+		std::vector<ConfigFile> configs;
 		std::vector<std::string> tokens = ConfigFile::tokenize_config(av[1]);
 		std::vector<std::string>::iterator i = tokens.begin();
 
@@ -25,12 +25,12 @@ int main(int ac, char **av)
             if (conf.listen.empty())
 			throw std::runtime_error("no listen ports defined in config");
 
-			request.conf.push_back(conf);
+			configs.push_back(conf);
 		}
 
-        for (size_t i = 0; i < request.conf.size(); ++i)
+        for (size_t i = 0; i < configs.size(); ++i)
         {
-            ConfigFile& c = request.conf[i];
+            ConfigFile& c = configs[i];
 
             std::cout << "\n========== SERVER " << i + 1 << " ==========\n";
 
@@ -99,14 +99,15 @@ int main(int ac, char **av)
             std::cout << "====================================\n";
         }
 		Server server;
-		server.init(request.conf.listen);
+		server.init(configs);
 
 		std::cout << "Server listening on port(s):";
-		for (size_t i = 0; i < request.conf.listen.size(); i++)
-			std::cout << " " << request.conf.listen[i];
+		for (size_t i = 0; i < configs.size(); ++i)
+			for (size_t j = 0; j < configs[i].listen.size(); ++j)
+				std::cout << " " << configs[i].listen[j];
 		std::cout << "\n";
 
-		server.run(request);
+		server.run();
 		
 	}
 	catch (const std::exception &e)
