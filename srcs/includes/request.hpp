@@ -32,7 +32,17 @@ class ConfigFile {
         std::vector<location> locations;
         std::map<std::string, std::string>cgi_config;
 
-        void parse_config_file(char *av);
+        static std::vector<std::string> tokenize_config(char *av);
+
+        void parse_server(
+            std::vector<std::string>& tokens,
+            std::vector<std::string>::iterator& i
+        );
+
+        void parse_location(
+            std::vector<std::string>& tokens,
+            std::vector<std::string>::iterator& i
+        );
 };
 
 
@@ -56,7 +66,7 @@ class Request{
     std::string path;
     std::string httpV;
     bool isCGI;
-    ConfigFile conf;
+    std::vector<ConfigFile> conf;
     bool _foundCookie;
 
     // * CGI information

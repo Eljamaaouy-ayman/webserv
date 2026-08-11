@@ -10,39 +10,94 @@ int main(int ac, char **av)
 	// }
 	try
 	{
-		// ConfigFile conf;
 		Request request;
-		request.conf.parse_config_file(av[1]);
+		std::vector<std::string> tokens = ConfigFile::tokenize_config(av[1]);
+		std::vector<std::string>::iterator i = tokens.begin();
 
-		if (request.conf.listen.empty())
+		while (i != tokens.end())
+		{
+			if (*i != "server")
+				throw std::runtime_error("expected server");
+
+			ConfigFile conf;
+
+			conf.parse_server(tokens, i);
+            if (conf.listen.empty())
 			throw std::runtime_error("no listen ports defined in config");
 
-		// --- config dump (delete this later, this is just for test) ---
-		// std::cout << "=== CONFIG PARSED ===\n";  
-		// std::cout << "host        : " << request.conf.host << "\n";  
-		// std::cout << "server_name : " << request.conf.server_name << "\n";  
-		// std::cout << "root        : " << request.conf.root << "\n";  
-		// std::cout << "index       : " << request.conf.index << "\n";  
-		// std::cout << "max_body    : " << request.conf.client_max_size_body << "\n";  
-		// std::cout << "ports       :";  
-		// for (size_t i = 0; i < request.conf.listen.size(); i++)  
-		// 	std::cout << " " << request.conf.listen[i];  
-		// std::cout << "\n";  
-		// for (std::map<int,std::string>::iterator it = request.conf.error_page.begin(); it != request.conf.error_page.end(); it++)  
-		// 	std::cout << "error_page  : " << it->first << " -> " << it->second << "\n";  
-		// for (size_t i = 0; i < request.conf.locations.size(); i++)  
-		// {  
-		// 	std::cout << "location    : " << request.conf.locations[i].path;  
-		// 	std::cout << "  methods:";  
-		// 	for (size_t j = 0; j < request.conf.locations[i].allow_methods.size(); j++)  
-		// 		std::cout << " " << request.conf.locations[i].allow_methods[j];  
-		// 	std::cout << "  autoindex:" << (request.conf.locations[i].autoindex ? "on" : "off");  
-		// 	std::cout << "\n";  
-		// }  
-		// for (std::map<std::string,std::string>::iterator it = request.conf.cgi_config.begin(); it != request.conf.cgi_config.end(); it++)  
-		// 	std::cout << "cgi         : " << it->first << " -> " << it->second << "\n";  
-		// std::cout << "=====================\n";  
+			request.conf.push_back(conf);
+		}
 
+        for (size_t i = 0; i < request.conf.size(); ++i)
+        {
+            ConfigFile& c = request.conf[i];
+
+            std::cout << "\n========== SERVER " << i + 1 << " ==========\n";
+
+            // Basic server information
+            std::cout << "server_name: " << c.server_name << std::endl;
+            std::cout << "host: " << c.host << std::endl;
+            std::cout << "root: " << c.root << std::endl;
+            std::cout << "index: " << c.index << std::endl;
+            std::cout << "client_max_body_size: "
+                    << c.client_max_size_body << std::endl;
+
+            // Listen ports
+            std::cout << "\nlisten:\n";
+            for (size_t j = 0; j < c.listen.size(); ++j)
+            {
+                std::cout << "  - " << c.listen[j] << std::endl;
+            }
+
+            // Error pages
+            std::cout << "\nerror pages:\n";
+            for (std::map<int, std::string>::iterator it = c.error_page.begin();
+                it != c.error_page.end();
+                ++it)
+            {
+                std::cout << "  " << it->first
+                        << " -> " << it->second << std::endl;
+            }
+
+            // CGI configuration
+            std::cout << "\nCGI config:\n";
+            for (std::map<std::string, std::string>::iterator it =
+                    c.cgi_config.begin();
+                it != c.cgi_config.end();
+                ++it)
+            {
+                std::cout << "  " << it->first
+                        << " -> " << it->second << std::endl;
+            }
+
+            // Locations
+            std::cout << "\nLocations:\n";
+
+            for (size_t j = 0; j < c.locations.size(); ++j)
+            {
+                location& loc = c.locations[j];
+
+                std::cout << "  ---------- LOCATION "
+                        << j + 1 << " ----------\n";
+
+                std::cout << "  path: " << loc.path << std::endl;
+                std::cout << "  root: " << loc.root << std::endl;
+                std::cout << "  index: " << loc.index << std::endl;
+                std::cout << "  return: " << loc.return_to << std::endl;
+                std::cout << "  autoindex: "
+                        << (loc.autoindex ? "on" : "off")
+                        << std::endl;
+
+                std::cout << "  allow_methods:";
+                for (size_t k = 0; k < loc.allow_methods.size(); ++k)
+                {
+                    std::cout << " " << loc.allow_methods[k];
+                }
+                std::cout << std::endl;
+            }
+
+            std::cout << "====================================\n";
+        }
 		Server server;
 		server.init(request.conf.listen);
 
