@@ -1,7 +1,6 @@
 #include "../includes/includes.hpp"
 #include <iostream>
 
-
 bool RequestHandler::isAuthenticated(Request &req)
 {
     if (req.request.find("Cookie") == req.request.end())
@@ -10,22 +9,6 @@ bool RequestHandler::isAuthenticated(Request &req)
     if (sessionID.empty())
         return false;
     return !SessionManager::getSessionData(sessionID).empty();
-}
-
-std::string RequestHandler::resolvePath(const std::string &uri, const std::string &root)
-{
-    std::string path = root + uri;
-    char resolvedPath[PATH_MAX];
-    if (realpath(path.c_str(), resolvedPath) == NULL)
-        throw 404;
-    char resolvedRoot[PATH_MAX];
-    if (realpath(root.c_str(), resolvedRoot) == NULL)
-        throw 404;
-    std::string sResolvedPath(resolvedPath);
-    std::string sResolvedRoot(resolvedRoot);
-    if (sResolvedPath.compare(0, sResolvedRoot.size(), sResolvedRoot) != 0 || (sResolvedPath.size() > sResolvedRoot.size() && sResolvedPath[sResolvedRoot.size()] != '/'))
-        throw 403;
-    return sResolvedPath;
 }
 
 bool RequestHandler::isDirectory(const std::string &path)
@@ -49,8 +32,25 @@ bool RequestHandler::isMethodAllowed(const std::string &method, location *loc)
     return false;
 }
 
-std::string RequestHandler::findContentType(const std::string &uri)
+std::string RequestHandler::getMimeType(const std::string &uri)
 {
+    static const std::map<std::string, std::string> mimeTypes = {
+        {".html", "text/html"},
+        {".htm", "text/html"},
+        {".css", "text/css"},
+        {".js", "text/javascript"},
+        {".txt", "text/plain"},
+        {".png", "image/png"},
+        {".jpg", "image/jpeg"},
+        {".jpeg", "image/jpeg"},
+        {".gif", "image/gif"},
+        {".ico", "image/x-icon"},
+        {".svg", "image/svg+xml"},
+        {".json", "application/json"},
+        {".pdf", "application/pdf"},
+        {".woff", "font/woff"},
+        {".woff2", "font/woff2"}};
+
     size_t dotPos = uri.find_last_of('.');
 
     if (dotPos == std::string::npos || dotPos == 0 || uri[dotPos - 1] == '/')
@@ -59,21 +59,10 @@ std::string RequestHandler::findContentType(const std::string &uri)
     std::string extension = uri.substr(dotPos);
     for (size_t i = 0; i < extension.length(); i++)
         extension[i] = std::tolower(extension[i]);
-    if (extension == ".html" || extension == ".htm")
-        return "text/html";
-    if (extension == ".css")
-        return "text/css";
-    if (extension == ".js")
-        return "application/javascript";
-    if (extension == ".txt")
-        return "text/plain";
-    if (extension == ".png")
-        return "image/png";
-    if (extension == ".jpeg")
-        return "image/jpeg";
-    if (extension == ".gif")
-        return "image/gif";
-    return "application/octet-stream";
+    std::map<std::string, std::string>::const_iterator it = mimeTypes.find(extension);
+    if (it == mimeTypes.end())
+        return "application/octet-stream";
+    return it->second;
 }
 
 std::string RequestHandler::urlDecode(std::string &str)
@@ -276,11 +265,14 @@ HttpResponse RequestHandler::handleRegister(const std::string &username, const s
     }
     return response;
 }
-HttpResponse RequestHandler::handleLogout(const std::string &session)
+HttpResponse RequestHandler::handleLogout(Request &req)
 {
     HttpResponse response;
-    SessionManager::destroySession(session);
-
+    if(req.request.find("Cookie") != req.request.end()){
+        std::string session = SessionManager::extractSessionID(req.request["Cookie"]);
+        if(!session.empty())
+        SessionManager::destroySession(session);
+    }
     response.setStatusCode(302);
     response.addCookie("session_id", "", "/", 0);
     response.addHeader("Location", "/login");
@@ -333,7 +325,7 @@ HttpResponse RequestHandler::handleGET(Request &req, location *loc)
     std::string root = (loc && !loc->root.empty()) ? loc->root : req.conf.root;
     std::string path;
 
-    path = resolvePath(req.path, root);
+    path = root + req.path;
 
     if (isDirectory(path))
     {
@@ -350,16 +342,18 @@ HttpResponse RequestHandler::handleGET(Request &req, location *loc)
         else
             throw 400;
     }
+    if (access(path.c_str(), F_OK) != 0)
+        throw 404;
     std::ifstream file(path.c_str(), std::ios::binary);
     if (file.is_open() == false)
-        throw errno == EACCES ? 403 : 404;
+        throw 403;
     else
     {
         std::ostringstream buffer;
         buffer << file.rdbuf();
         response.setBody(buffer.str());
         response.setStatusCode(200);
-        response.addHeader("Content-Type", findContentType(path));
+        response.addHeader("Content-Type", getMimeType(path));
     }
 
     return response;
@@ -374,6 +368,8 @@ HttpResponse RequestHandler::handlePOST(Request &req, location *loc)
         return (handleRegister(getFieldValue(req.request["post-body"], "username"), getFieldValue(req.request["post-body"], "password")));
     else if (req.request["Content-Type"].find("multipart/form-data") != std::string::npos)
         return handleUpload(req, loc);
+    else if (req.path == "/logout")
+        return handleLogout(req);
     return errorResponse(415, req.conf);
 }
 HttpResponse RequestHandler::handleDELETE(Request &req, location *loc)
@@ -383,13 +379,13 @@ HttpResponse RequestHandler::handleDELETE(Request &req, location *loc)
     std::string root = (loc && !loc->root.empty()) ? loc->root : req.conf.root;
     std::string path;
 
-    // std::cout << "requested path: " << req.path << std::endl;
-    path = resolvePath(urlDecode(req.path), root);
-
+    path = root + req.path;
     if (isDirectory(path))
         throw 403;
-    if (std::remove(path.c_str()) != 0)
-        throw errno == EACCES ? 403 : 404;
+    else if (access(path.c_str(), F_OK) != 0)
+        throw 404;
+    else if (std::remove(path.c_str()) != 0)
+        throw 403;
     else
         response.setStatusCode(204);
 
@@ -397,13 +393,14 @@ HttpResponse RequestHandler::handleDELETE(Request &req, location *loc)
 }
 HttpResponse RequestHandler::handleRequest(Request &req)
 {
+    if (req.method == "ERROR")
+        return errorResponse(400, req.conf);
+
     HttpResponse response;
     location *loc = getLocation(req.path, req.conf.locations);
-    if(req.request["post-body"].size() > req.conf.client_max_size_body) 
+    if (req.request["post-body"].size() > req.conf.client_max_size_body)
         return errorResponse(413, req.conf);
-    if(req.method == "ERROR")
-        return errorResponse(400, req.conf);
-    
+
     if (loc && !loc->return_to.empty())
     {
         response.addHeader("Location", loc->return_to);

@@ -19,10 +19,6 @@ ConfigFile::tokenize_config(char *av)
 
     if (!inFile.is_open())
         throw std::runtime_error("can't open the config file");
-
-    /*
-     * Read the entire file and remove comments.
-     */
     while (std::getline(inFile, line))
     {
         size_t pos = line.find("#");
@@ -33,21 +29,12 @@ ConfigFile::tokenize_config(char *av)
         file.append(line);
         file.append(" ");
     }
-
-    /*
-     * Tokenization
-     */
     size_t start = 0;
     size_t end = 0;
 
     while (end < file.size())
     {
-        /*
-         * Skip spaces
-         */
-        while (end < file.size() &&
-               std::isspace(
-                   static_cast<unsigned char>(file[end])))
+        while (end < file.size() && std::isspace(static_cast<unsigned char>(file[end])))
         {
             end++;
         }
@@ -56,41 +43,17 @@ ConfigFile::tokenize_config(char *av)
             break;
 
         start = end;
-
-        /*
-         * Read a normal token until whitespace or
-         * one of: { } ;
-         */
         while (end < file.size() &&
                !std::isspace(
-                   static_cast<unsigned char>(file[end])) &&
-               file[end] != '{' &&
-               file[end] != '}' &&
-               file[end] != ';')
+                   static_cast<unsigned char>(file[end])) && file[end] != '{' && file[end] != '}' && file[end] != ';')
         {
             end++;
         }
-
-        /*
-         * Add the normal token if we found one.
-         */
         if (start != end)
-            tokens.push_back(
-                file.substr(start, end - start)
-            );
-
-        /*
-         * Add {, } or ; as a separate token.
-         */
-        if (end < file.size() &&
-            (file[end] == '{' ||
-             file[end] == '}' ||
-             file[end] == ';'))
+            tokens.push_back(file.substr(start, end - start));
+        if (end < file.size() && (file[end] == '{' || file[end] == '}' || file[end] == ';'))
         {
-            tokens.push_back(
-                std::string(1, file[end])
-            );
-
+            tokens.push_back(std::string(1, file[end]));
             end++;
         }
     }

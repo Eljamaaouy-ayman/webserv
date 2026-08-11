@@ -2,43 +2,26 @@
 
 std::string HttpResponse::getReasonPhrase()
 {
-    switch (statusCode)
-    {
-    case 200:
-        return "OK";
-    case 201:
-        return "Created";
-    case 204:
-        return "No Content";
-    case 301:
-        return "Moved Permanently";
-    case 302:
-        return "Found";
-    case 400:
-        return "Bad Request";
-    case 403:
-        return "Forbidden";
-    case 404:
-        return "Not Found";
-    case 405:
-        return "Method Not Allowed";
-    case 409:
-        return "Conflict";
-    case 413:
-        return "Payload Too Large";
-    case 415:
-        return "Unsupported Media Type";
-    case 500:
-        return "Internal Server Error";
-    case 501:
-        return "Not Implemented";
-    case 505:
-        return "HTTP Version Not Supported";
-    default:
+    static std::map<int, std::string> reasonPhrases = {
+        {200, "OK"},
+        {201, "Created"},
+        {204, "No Content"},
+        {301, "Moved Permanently"},
+        {302, "Found"},
+        {400, "Bad Request"},
+        {403, "Forbidden"},
+        {404, "Not Found"},
+        {405, "Method Not Allowed"},
+        {409, "Conflict"},
+        {413, "Payload Too Large"},
+        {415, "Unsupported Media Type"},
+        {500, "Internal Server Error"},
+        {501, "Not Implemented"},
+        {505, "HTTP Version Not Supported"}};
+    std::map<int, std::string>::const_iterator it = reasonPhrases.find(statusCode);
+    if (it == reasonPhrases.end())
         return "Unknown";
-    }
-
-    return "Unknown";
+    return it->second;
 }
 
 void HttpResponse::setStatusCode(int code)
@@ -81,7 +64,7 @@ void HttpResponse::setErrorPage(ConfigFile &conf)
         if (file.is_open())
         {
             page << file.rdbuf();
-            addHeader("Content-Type", RequestHandler::findContentType(errorFilePath));
+            addHeader("Content-Type", RequestHandler::getMimeType(errorFilePath));
             body_ = page.str();
             return;
         }
