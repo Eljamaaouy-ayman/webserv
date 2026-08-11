@@ -43,7 +43,5 @@ std::string SessionManager::extractSessionID(const std::string &cookie)
     size_t end = cookie.find(';', start);
     std::string sessionID = trim(end == std::string::npos ? cookie.substr(start) : cookie.substr(start, end - start));
 
-    std::string ws = " \t\n\r\f\v";
-
     return sessionID;
 }

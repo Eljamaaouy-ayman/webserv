@@ -265,11 +265,14 @@ HttpResponse RequestHandler::handleRegister(const std::string &username, const s
     }
     return response;
 }
-HttpResponse RequestHandler::handleLogout(const std::string &session)
+HttpResponse RequestHandler::handleLogout(Request &req)
 {
     HttpResponse response;
-    SessionManager::destroySession(session);
-
+    if(req.request.find("Cookie") != req.request.end()){
+        std::string session = SessionManager::extractSessionID(req.request["Cookie"]);
+        if(!session.empty())
+        SessionManager::destroySession(session);
+    }
     response.setStatusCode(302);
     response.addCookie("session_id", "", "/", 0);
     response.addHeader("Location", "/login");
@@ -365,6 +368,8 @@ HttpResponse RequestHandler::handlePOST(Request &req, location *loc)
         return (handleRegister(getFieldValue(req.request["post-body"], "username"), getFieldValue(req.request["post-body"], "password")));
     else if (req.request["Content-Type"].find("multipart/form-data") != std::string::npos)
         return handleUpload(req, loc);
+    else if (req.path == "/logout")
+        return handleLogout(req);
     return errorResponse(415, req.conf);
 }
 HttpResponse RequestHandler::handleDELETE(Request &req, location *loc)
@@ -388,12 +393,13 @@ HttpResponse RequestHandler::handleDELETE(Request &req, location *loc)
 }
 HttpResponse RequestHandler::handleRequest(Request &req)
 {
+    if (req.method == "ERROR")
+        return errorResponse(400, req.conf);
+
     HttpResponse response;
     location *loc = getLocation(req.path, req.conf.locations);
     if (req.request["post-body"].size() > req.conf.client_max_size_body)
         return errorResponse(413, req.conf);
-    if (req.method == "ERROR")
-        return errorResponse(400, req.conf);
 
     if (loc && !loc->return_to.empty())
     {

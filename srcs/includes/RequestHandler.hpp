@@ -39,7 +39,7 @@ private:
     static std::string extractBoundary(const std::string &contentType);
 
     static HttpResponse handleLogin(const std::string &username, const std::string &password);
-    static HttpResponse handleLogout(const std::string &session);
+    static HttpResponse handleLogout(Request &req);
     static HttpResponse handleRegister(const std::string &username, const std::string &password);
     static HttpResponse handleUpload(Request &req, location *loc);
     static HttpResponse handleAutoIndex(const std::string &path, const std::string &root);
