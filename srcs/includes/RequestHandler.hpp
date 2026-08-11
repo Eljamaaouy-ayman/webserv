@@ -46,7 +46,7 @@ private:
 
 public:
     static bool isDirectory(const std::string &path);
-    static std::string findContentType(const std::string &uri);
+    static std::string getMimeType(const std::string &uri);
     static HttpResponse handleGET(Request &req, location *loc);
     static HttpResponse handlePOST(Request &req, location *loc);
     static HttpResponse handleDELETE(Request &req, location *loc);
