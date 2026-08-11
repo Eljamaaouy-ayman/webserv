@@ -17,6 +17,7 @@
 #include "../includes/Cgi.hpp"
 
 const int Server::CGI_TIMEOUT_SECONDS;
+const int Server::CLIENT_IDLE_TIMEOUT_SECONDS;
 
 // Constructs the server and makes a broken CGI pipe fail safely instead of raising SIGPIPE.
 Server::Server()
@@ -378,15 +379,93 @@ void Server::_timeoutCgi(int clientFd)
 		p->events = POLLIN | POLLOUT;
 }
 
+// How long poll() should block on account of idle clients: -1 (forever) if
+// none are waiting, otherwise just long enough to wake up exactly when the
+// soonest-idle client hits its deadline. Clients currently running a CGI are
+// skipped -- they're covered by _cgiPollTimeout()/CGI_TIMEOUT_SECONDS instead.
+int Server::_clientPollTimeout()
+{
+	time_t now = time(NULL);
+	bool found = false;
+	time_t earliestDeadline = 0;
+
+	for (std::map<int, Client>::iterator it = _clients.begin(); it != _clients.end(); ++it)
+	{
+		if (it->second.cgi)
+			continue;
+
+		time_t deadline = it->second.last_activity + CLIENT_IDLE_TIMEOUT_SECONDS;
+		if (!found || deadline < earliestDeadline)
+		{
+			earliestDeadline = deadline;
+			found = true;
+		}
+	}
+
+	if (!found)
+		return -1;
+
+	long remaining = static_cast<long>(earliestDeadline - now);
+	if (remaining < 0)
+		remaining = 0;
+	return static_cast<int>(remaining * 1000);
+}
+
+// Combines the CGI and idle-client deadlines into the single timeout poll() gets,
+// so it never sleeps past whichever of the two is soonest.
+int Server::_pollTimeout()
+{
+	int cgiMs = _cgiPollTimeout();
+	int clientMs = _clientPollTimeout();
+
+	if (cgiMs < 0)
+		return clientMs;
+	if (clientMs < 0)
+		return cgiMs;
+	return cgiMs < clientMs ? cgiMs : clientMs;
+}
+
+// Checked once per loop: disconnects any client (not currently running a CGI)
+// that hasn't sent a single byte in CLIENT_IDLE_TIMEOUT_SECONDS, whether that's
+// because they never sent a request at all or went silent after a keep-alive
+// response. Collect fds first, then disconnect -- _disconnect_client() mutates
+// _fds/_clients, which would invalidate the iterator above if done in-loop.
+void Server::_reapTimedOutClients()
+{
+	time_t now = time(NULL);
+	std::vector<int> timedOut;
+
+	for (std::map<int, Client>::iterator it = _clients.begin(); it != _clients.end(); ++it)
+	{
+		if (it->second.cgi)
+			continue;
+		if (now - it->second.last_activity >= CLIENT_IDLE_TIMEOUT_SECONDS)
+			timedOut.push_back(it->first);
+	}
+
+	for (size_t k = 0; k < timedOut.size(); ++k)
+	{
+		for (size_t idx = 0; idx < _fds.size(); ++idx)
+		{
+			if (_fds[idx].fd == timedOut[k])
+			{
+				_disconnect_client(idx);
+				break;
+			}
+		}
+	}
+}
+
 // Runs forever: the single poll() loop driving every client socket and CGI pipe.
 void Server::run()
 {
 	while (true)
 	{
-		if (poll(_fds.data(), _fds.size(), _cgiPollTimeout()) < 0)
+		if (poll(_fds.data(), _fds.size(), _pollTimeout()) < 0)
 			throw std::runtime_error("poll() failed");
 
 		_reapTimedOutCgi();
+		_reapTimedOutClients();
 
 		for (size_t i = 0; i < _fds.size(); ++i)
 		{
@@ -420,6 +499,7 @@ void Server::run()
 				ssize_t n = recv(fd, buffer, 1024, 0);
 				if (n > 0)
 				{
+					_clients[fd].last_activity = time(NULL);
 					_clients[fd].read_buff.append(buffer, n);
 
 					if (_clients[fd].is_request_complete())
@@ -435,6 +515,12 @@ void Server::run()
 						{
 							_clients[fd].write_buff = RequestHandler::handleRequest(*_clients[fd].request).build();
 							_fds[i].events |= POLLOUT;
+							// A 400 here means the request itself was unparseable (bad request
+							// line, missing/garbled Host, etc.) -- the framing is untrustworthy,
+							// so we can no longer be sure where a next request would even start
+							// on this connection. Close it once the response is flushed.
+							if (_clients[fd].request->method == "ERROR")
+								_clients[fd].shouldClose = true;
 						}
 					}
 				}
@@ -451,7 +537,14 @@ void Server::run()
 				if (n > 0)
 					buf.erase(0, n);
 				if (buf.empty())
+				{
+					if (_clients[fd].shouldClose)
+					{
+						_disconnect_client(i);
+						continue;
+					}
 					_fds[i].events &= ~POLLOUT;
+				}
 			}
 		}
 	}

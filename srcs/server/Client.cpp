@@ -3,13 +3,14 @@
 #include "../includes/Cgi.hpp"
 #include <cstdlib>
 
-Client::Client() : request(new Request()), cgi(NULL)
+Client::Client() : request(new Request()), cgi(NULL), last_activity(time(NULL)), shouldClose(false)
 {
 }
 
 Client::Client(const Client &other)
 	: read_buff(other.read_buff), write_buff(other.write_buff),
-	  request(new Request(*other.request)), cgi(NULL)
+	  request(new Request(*other.request)), cgi(NULL), last_activity(other.last_activity),
+	  shouldClose(other.shouldClose)
 {
 }
 
@@ -24,6 +25,8 @@ Client &Client::operator=(const Client &other)
 		request = new Request(*other.request);
 		delete cgi;
 		cgi = NULL;
+		last_activity = other.last_activity;
+		shouldClose = other.shouldClose;
 	}
 	return *this;
 }

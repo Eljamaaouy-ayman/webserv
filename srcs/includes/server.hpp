@@ -18,6 +18,7 @@ public:
 
 private:
     static const int CGI_TIMEOUT_SECONDS = 5; //a CGI running longer than this gets killed and answered with 504
+    static const int CLIENT_IDLE_TIMEOUT_SECONDS = 30; //a connection with no client activity for this long gets disconnected
 
     std::vector<pollfd>   _fds; //listen sockets + client sockets + cgi pipes
     std::map<int, Client> _clients;
@@ -44,4 +45,8 @@ private:
     int  _cgiPollTimeout();
     void _reapTimedOutCgi();
     void _timeoutCgi(int clientFd);
+
+    int  _clientPollTimeout();
+    int  _pollTimeout();
+    void _reapTimedOutClients();
 };
