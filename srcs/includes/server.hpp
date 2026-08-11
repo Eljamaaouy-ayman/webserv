@@ -17,6 +17,8 @@ public:
     void run(const Request &request);
 
 private:
+    static const int CGI_TIMEOUT_SECONDS = 5; //a CGI running longer than this gets killed and answered with 504
+
     std::vector<pollfd>   _fds; //listen sockets + client sockets + cgi pipes
     std::map<int, Client> _clients;
     std::vector<int>      _server_fds;
@@ -35,4 +37,8 @@ private:
     bool _serviceCgiStdin(int pipeFd, int clientFd);
     bool _serviceCgiStdout(int pipeFd, int clientFd);
     void _finishCgi(int clientFd, bool ok = true);
+
+    int  _cgiPollTimeout();
+    void _reapTimedOutCgi();
+    void _timeoutCgi(int clientFd);
 };

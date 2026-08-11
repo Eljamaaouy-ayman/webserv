@@ -8,12 +8,15 @@
 #include <iostream>
 #include <sys/wait.h>
 #include <csignal>
+#include <ctime>
 
 #include "../includes/server.hpp"
 #include "../includes/request.hpp"
 #include "../includes/RequestHandler.hpp"
 #include "../includes/HttpResponse.hpp"
 #include "../includes/Cgi.hpp"
+
+const int Server::CGI_TIMEOUT_SECONDS;
 
 // Constructs the server and makes a broken CGI pipe fail safely instead of raising SIGPIPE.
 Server::Server() : _conf(NULL)
@@ -28,6 +31,7 @@ int Server::_create_server_socket(int port)
 	if (fd < 0)
 		throw std::runtime_error("socket() failed");
 
+	fcntl(fd, F_SETFL, O_NONBLOCK);
 	fcntl(fd, F_SETFD, FD_CLOEXEC);
 
 	int opt = 1;
@@ -283,6 +287,87 @@ void Server::_finishCgi(int clientFd, bool ok)
 		p->events = POLLIN | POLLOUT;
 }
 
+// How long poll() should block: -1 (forever) if no CGI is running, otherwise just
+// long enough to wake up exactly when the soonest-started CGI hits its deadline.
+int Server::_cgiPollTimeout()
+{
+	time_t now = time(NULL);
+	bool found = false;
+	time_t earliestDeadline = 0;
+
+	for (std::map<int, Client>::iterator it = _clients.begin(); it != _clients.end(); ++it)
+	{
+		CgiProcess *cgi = it->second.cgi;
+		if (!cgi)
+			continue;
+
+		time_t deadline = cgi->startTime + CGI_TIMEOUT_SECONDS;
+		if (!found || deadline < earliestDeadline)
+		{
+			earliestDeadline = deadline;
+			found = true;
+		}
+	}
+
+	if (!found)
+		return -1;
+
+	long remaining = static_cast<long>(earliestDeadline - now);
+	if (remaining < 0)
+		remaining = 0;
+	return static_cast<int>(remaining * 1000);
+}
+
+// Checked once per loop: kills any CGI that has been running past CGI_TIMEOUT_SECONDS,
+// whether poll() woke up for it or for something unrelated (or for nothing at all).
+void Server::_reapTimedOutCgi()
+{
+	time_t now = time(NULL);
+
+	for (std::map<int, Client>::iterator it = _clients.begin(); it != _clients.end(); ++it)
+	{
+		CgiProcess *cgi = it->second.cgi;
+		if (cgi && now - cgi->startTime >= CGI_TIMEOUT_SECONDS)
+			_timeoutCgi(it->first);
+	}
+}
+
+// A CGI ran past its deadline: kill it, clean up its pipes, and answer 504 instead
+// of leaving the request hanging on a script that may never finish on its own.
+void Server::_timeoutCgi(int clientFd)
+{
+	Client &client = _clients[clientFd];
+	CgiProcess *cgi = client.cgi;
+
+	if (cgi->stdinFd != -1)
+	{
+		close(cgi->stdinFd);
+		_cgiPipeOwner.erase(cgi->stdinFd);
+		_removeFd(cgi->stdinFd);
+	}
+	if (cgi->stdoutFd != -1)
+	{
+		close(cgi->stdoutFd);
+		_cgiPipeOwner.erase(cgi->stdoutFd);
+		_removeFd(cgi->stdoutFd);
+	}
+
+	kill(cgi->pid, SIGKILL);
+	waitpid(cgi->pid, NULL, 0);
+
+	HttpResponse response;
+	response.setStatusCode(504);
+	response.setErrorPage(client.request->conf);
+	client.write_buff = response.build();
+
+	delete cgi;
+	client.cgi = NULL;
+
+	struct pollfd *p = _findPollfd(clientFd);
+	if (p)
+		p->events = POLLIN | POLLOUT;
+}
+
 // Runs forever: the single poll() loop driving every client socket and CGI pipe.
 void Server::run(const Request &request)
 {
@@ -290,8 +375,10 @@ void Server::run(const Request &request)
 
 	while (true)
 	{
-		if (poll(_fds.data(), _fds.size(), -1) < 0)
+		if (poll(_fds.data(), _fds.size(), _cgiPollTimeout()) < 0)
 			throw std::runtime_error("poll() failed");
+
+		_reapTimedOutCgi();
 
 		for (size_t i = 0; i < _fds.size(); ++i)
 		{

@@ -17,6 +17,7 @@ std::string HttpResponse::getReasonPhrase()
         {415, "Unsupported Media Type"},
         {500, "Internal Server Error"},
         {501, "Not Implemented"},
+        {504, "Gateway Timeout"},
         {505, "HTTP Version Not Supported"}};
     std::map<int, std::string>::const_iterator it = reasonPhrases.find(statusCode);
     if (it == reasonPhrases.end())

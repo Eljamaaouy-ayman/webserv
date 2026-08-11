@@ -115,3 +115,16 @@ bool Client::_dechunkIfComplete(size_t header_end)
 	read_buff = rebuilt + "\r\n" + decoded;
 	return true;
 }
+
+//example of chenked 
+
+// POST /upload HTTP/1.1\r\n
+// Host: localhost:8080\r\n
+// Transfer-Encoding: chunked\r\n
+// \r\n
+// 5\r\n
+// Hello\r\n
+// 6\r\n
+//  World\r\n
+// 0\r\n
+// \r\n

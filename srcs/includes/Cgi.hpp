@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <ctime>
 #include <sys/types.h>
 #include "request.hpp"
 
@@ -16,6 +17,7 @@ struct CgiProcess
     std::string body;
     size_t bodyWritten;
     std::string output;
+    time_t startTime;
 };
 
 class Cgi

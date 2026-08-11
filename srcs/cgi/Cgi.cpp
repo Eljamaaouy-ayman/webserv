@@ -2,6 +2,7 @@
 #include "../includes/HttpResponse.hpp"
 #include <cctype>
 #include <cstdlib>
+#include <ctime>
 #include <unistd.h>
 #include <fcntl.h>
 
@@ -149,6 +150,7 @@ CgiProcess Cgi::spawnProcess(const std::string &interpreter,
     proc.stdinFd = inPipe[1];
     proc.stdoutFd = outPipe[0];
     proc.bodyWritten = 0;
+    proc.startTime = time(NULL);
     return proc;
 }
 
