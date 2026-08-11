@@ -14,7 +14,6 @@
 
 
 #include <stdlib.h>
-// #define realpath(N,R) _fullpath((R),(N),_MAX_PATH) // for windows
 
 class HttpResponse;
 
@@ -29,7 +28,6 @@ typedef struct Part
 class RequestHandler
 {
 private:
-    static std::string resolvePath(const std::string &uri, const std::string &root);
     static bool isMethodAllowed(const std::string &method, location *loc);
     static std::string urlDecode(std::string &str);
     static std::string getFieldValue(const std::string &body, const std::string &field);

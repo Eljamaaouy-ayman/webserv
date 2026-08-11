@@ -1,7 +1,6 @@
 #include "../includes/includes.hpp"
 #include <iostream>
 
-
 bool RequestHandler::isAuthenticated(Request &req)
 {
     if (req.request.find("Cookie") == req.request.end())
@@ -10,22 +9,6 @@ bool RequestHandler::isAuthenticated(Request &req)
     if (sessionID.empty())
         return false;
     return !SessionManager::getSessionData(sessionID).empty();
-}
-
-std::string RequestHandler::resolvePath(const std::string &uri, const std::string &root)
-{
-    std::string path = root + uri;
-    char resolvedPath[PATH_MAX];
-    if (realpath(path.c_str(), resolvedPath) == NULL)
-        throw 404;
-    char resolvedRoot[PATH_MAX];
-    if (realpath(root.c_str(), resolvedRoot) == NULL)
-        throw 404;
-    std::string sResolvedPath(resolvedPath);
-    std::string sResolvedRoot(resolvedRoot);
-    if (sResolvedPath.compare(0, sResolvedRoot.size(), sResolvedRoot) != 0 || (sResolvedPath.size() > sResolvedRoot.size() && sResolvedPath[sResolvedRoot.size()] != '/'))
-        throw 403;
-    return sResolvedPath;
 }
 
 bool RequestHandler::isDirectory(const std::string &path)
@@ -333,7 +316,7 @@ HttpResponse RequestHandler::handleGET(Request &req, location *loc)
     std::string root = (loc && !loc->root.empty()) ? loc->root : req.conf.root;
     std::string path;
 
-    path = resolvePath(req.path, root);
+    path = root + req.path;
 
     if (isDirectory(path))
     {
@@ -350,9 +333,11 @@ HttpResponse RequestHandler::handleGET(Request &req, location *loc)
         else
             throw 400;
     }
+    if (access(path.c_str(), F_OK) != 0)
+        throw 404;
     std::ifstream file(path.c_str(), std::ios::binary);
     if (file.is_open() == false)
-        throw errno == EACCES ? 403 : 404;
+        throw 403;
     else
     {
         std::ostringstream buffer;
@@ -384,12 +369,14 @@ HttpResponse RequestHandler::handleDELETE(Request &req, location *loc)
     std::string path;
 
     // std::cout << "requested path: " << req.path << std::endl;
-    path = resolvePath(urlDecode(req.path), root);
+    path = root + urlDecode(req.path);
 
     if (isDirectory(path))
         throw 403;
-    if (std::remove(path.c_str()) != 0)
-        throw errno == EACCES ? 403 : 404;
+    else if (access(path.c_str(), F_OK) != 0)
+        throw 404;
+    else if (std::remove(path.c_str()) != 0)
+        throw 403;
     else
         response.setStatusCode(204);
 
@@ -399,11 +386,11 @@ HttpResponse RequestHandler::handleRequest(Request &req)
 {
     HttpResponse response;
     location *loc = getLocation(req.path, req.conf.locations);
-    if(req.request["post-body"].size() > req.conf.client_max_size_body) 
+    if (req.request["post-body"].size() > req.conf.client_max_size_body)
         return errorResponse(413, req.conf);
-    if(req.method == "ERROR")
+    if (req.method == "ERROR")
         return errorResponse(400, req.conf);
-    
+
     if (loc && !loc->return_to.empty())
     {
         response.addHeader("Location", loc->return_to);
