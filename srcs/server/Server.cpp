@@ -263,8 +263,15 @@ void Server::_finishCgi(int clientFd, bool ok)
 	}
 	else
 	{
-		response.setStatusCode(200);
-		response.setBody(cgi->output);
+		try
+		{
+			response = Cgi::parseOutput(cgi->output);
+		}
+		catch (int code)
+		{
+			response.setStatusCode(code);
+			response.setErrorPage(client.request->conf);
+		}
 	}
 	client.write_buff = response.build();
 

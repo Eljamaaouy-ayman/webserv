@@ -1,4 +1,5 @@
 #include "../includes/Cgi.hpp"
+#include "../includes/HttpResponse.hpp"
 #include <cctype>
 #include <cstdlib>
 #include <unistd.h>
@@ -170,4 +171,62 @@ CgiProcess Cgi::start(Request &req)
     }
 
     return proc;
+}
+
+// Splits a finished CGI script's raw stdout into headers and body for an HttpResponse.
+HttpResponse Cgi::parseOutput(const std::string &output) //remove this 
+{
+    HttpResponse response;
+    response.setStatusCode(200);
+
+    size_t headerEnd = output.find("\r\n\r\n");
+    size_t sepLen = 4;
+    if (headerEnd == std::string::npos)
+    {
+        headerEnd = output.find("\n\n");
+        sepLen = 2;
+    }
+    if (headerEnd == std::string::npos)
+    {
+        response.setBody(output);
+        response.addHeader("Content-Type", "text/plain");
+        return response;
+    }
+
+    std::string headerBlock = output.substr(0, headerEnd);
+    std::string body = output.substr(headerEnd + sepLen);
+
+    std::istringstream headerStream(headerBlock);
+    std::string line;
+    while (std::getline(headerStream, line))
+    {
+        if (!line.empty() && line[line.size() - 1] == '\r')
+            line.erase(line.size() - 1);
+        if (line.empty())
+            continue;
+
+        size_t colon = line.find(':');
+        if (colon == std::string::npos)
+            continue;
+
+        std::string key = line.substr(0, colon);
+        std::string value = line.substr(colon + 1);
+        while (!value.empty() && value[0] == ' ')
+            value.erase(0, 1);
+
+        if (key == "Status")
+        {
+            int code = std::atoi(value.c_str());
+            if (code > 0)
+                response.setStatusCode(code);
+        }
+        else if (key == "Content-Length")
+        {
+        }
+        else
+            response.addHeader(key, value);
+    }
+
+    response.setBody(body);
+    return response;
 }
