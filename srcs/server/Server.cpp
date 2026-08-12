@@ -19,10 +19,19 @@
 const int Server::CGI_TIMEOUT_SECONDS;
 const int Server::CLIENT_IDLE_TIMEOUT_SECONDS;
 
+volatile sig_atomic_t g_shutdown = 1;
+
+void handleSig(int)
+{
+	g_shutdown = 0;
+}
+
 // Constructs the server and makes a broken CGI pipe fail safely instead of raising SIGPIPE.
 Server::Server()
 {
 	signal(SIGPIPE, SIG_IGN);
+	signal(SIGINT, handleSig);
+	signal(SIGTERM, handleSig);
 }
 
 // Creates, binds, and listens on a TCP socket for the given port.
@@ -459,17 +468,10 @@ void Server::_reapTimedOutClients()
 // Runs forever: the single poll() loop driving every client socket and CGI pipe.
 void Server::run()
 {
-	time_t testStart = time(NULL);
-	while (true)
+	while (g_shutdown)
 	{
-		// if (poll(_fds.data(), _fds.size(), _pollTimeout()) < 0)
-		// 	throw std::runtime_error("poll() failed");
-
-		if (poll(_fds.data(), _fds.size(), 1000) < 0)   // TEMP: hardcoded 1000ms instead of _pollTimeout()
+		if (poll(_fds.data(), _fds.size(), _pollTimeout()) < 0)
 			throw std::runtime_error("poll() failed");
-
-		if (time(NULL) - testStart >= 10)   // TEMP: remove after testing
-			break;
 
 		_reapTimedOutCgi();
 		_reapTimedOutClients();
