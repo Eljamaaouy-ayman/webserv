@@ -233,7 +233,7 @@ HttpResponse RequestHandler::handleLogin(const std::string &username, const std:
     if (UserManager::authenticateUser(username, password) == false)
     {
         response.setStatusCode(401);
-        response.setBody(CreatePages::LoginPage("Incorrect username or password."));
+        response.setBody(CreatePages::LoginPage("Wrong username or password."));
         response.addHeader("Content-Type", "text/html");
     }
     else
