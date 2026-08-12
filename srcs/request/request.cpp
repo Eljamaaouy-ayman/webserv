@@ -139,16 +139,7 @@ bool Request::parseRequestLine(const std::string& line) {
     
     // Extract method
     firstLine >> reqMethod;
-    if (reqMethod == "GET") {
-        this->method = "GET";
-    } else if (reqMethod == "POST") {
-        this->method = "POST";
-    } else if (reqMethod == "DELETE") {
-        this->method = "DELETE";
-    } else {
-        this->method = "ERROR";
-        return false;
-    }
+        this->method = reqMethod;
     
     // Extract path and HTTP version
     firstLine >> this->path >> this->httpV;

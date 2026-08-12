@@ -22,7 +22,7 @@ bool RequestHandler::isDirectory(const std::string &path)
 
 bool RequestHandler::isMethodAllowed(const std::string &method, location *loc)
 {
-    if (loc == NULL)
+    if (loc == NULL || (method != "GET" && method != "POST" && method != "DELETE"))
         return true;
     for (size_t i = 0; i < loc->allow_methods.size(); i++)
     {

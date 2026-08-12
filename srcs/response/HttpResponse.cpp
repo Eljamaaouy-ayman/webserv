@@ -61,7 +61,7 @@ void HttpResponse::setErrorPage(ConfigFile &conf)
     if (conf.error_page.find(statusCode) != conf.error_page.end())
     {
         std::string errorFilePath = conf.error_page[statusCode];
-        std::ifstream file(errorFilePath.c_str());
+        std::ifstream file((conf.root + "/" + errorFilePath.c_str()).c_str());
         if (file.is_open())
         {
             page << file.rdbuf();
