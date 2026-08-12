@@ -34,10 +34,8 @@ ConfigFile::tokenize_config(char *av)
 
     while (end < file.size())
     {
-        while (end < file.size() && std::isspace(static_cast<unsigned char>(file[end])))
-        {
+        while (end < file.size() && std::isspace(file[end]))
             end++;
-        }
 
         if (end >= file.size())
             break;
@@ -58,22 +56,19 @@ ConfigFile::tokenize_config(char *av)
         }
     }
 
+    if (tokens.empty())
+        throw std::runtime_error("config file is empty");
     return tokens;
 }
 
 
-void ConfigFile::parse_location(
-    std::vector<std::string>& tokens,
-    std::vector<std::string>::iterator& i
-)
+void ConfigFile::parse_location(std::vector<std::string>& tokens, std::vector<std::string>::iterator& i)
 {
     location returned_loc;
 
     i++;
     if (i == tokens.end())
-        throw std::runtime_error(
-            "location path missing"
-        );
+        throw std::runtime_error("location path missing");
 
     returned_loc.path = *i;
 
@@ -90,35 +85,26 @@ void ConfigFile::parse_location(
             i++;
 
             if (i == tokens.end() || !i->compare(";"))
-                throw std::runtime_error(
-                    "no methods in the location"
-                );
+                throw std::runtime_error("no methods in the location");
 
             while (i != tokens.end() && i->compare(";"))
             {
                 if (i->compare("delete") && i->compare("post") && i->compare("get"))
                 {
-                    throw std::runtime_error(
-                        "not the best methods in the location"
-                    );
+                    throw std::runtime_error("not the best methods in the location");
                 }
 
                 std::string method = *i;
 
                 for (size_t j = 0; j < method.length(); j++)
-                    method[j] = std::toupper(
-                        static_cast<unsigned char>(method[j])
-                    );
+                    method[j] = toupper(method[j]);
 
                 returned_loc.allow_methods.push_back(method);
-
                 i++;
             }
 
             if (i == tokens.end())
-                throw std::runtime_error(
-                    "missing semicolon"
-                );
+                throw std::runtime_error("missing semicolon");
 
             check_semicolon(i);
         }
@@ -167,23 +153,15 @@ void ConfigFile::parse_location(
             check_semicolon(i);
         }
         else if (!i->compare("}"))
-        {
             break;
-        }
         else
-        {
-            throw std::runtime_error(
-                "error, unknown element: " + *i
-            );
-        }
+            throw std::runtime_error("error, unknown element: " + *i);
 
         i++;
     }
 
     if (i == tokens.end())
-        throw std::runtime_error(
-            "location missing closing brace"
-        );
+        throw std::runtime_error("location missing closing brace");
     locations.push_back(returned_loc);
     i++;
 }
@@ -209,11 +187,8 @@ void ConfigFile::parse_server(std::vector<std::string>& tokens, std::vector<std:
                 throw std::runtime_error("listen port missing");
             for (size_t j = 0; j < i->size(); j++)
             {
-                if (!std::isdigit(
-                        static_cast<unsigned char>((*i)[j])))
-                {
+                if (!isdigit((*i)[j]))
                     throw std::runtime_error("listen is not a number");
-                }
             }
             int n = std::atoi(i->c_str());
 
@@ -231,7 +206,6 @@ void ConfigFile::parse_server(std::vector<std::string>& tokens, std::vector<std:
         else if (!i->compare("server_name"))
         {
             i++;
-
             if (i == tokens.end())
                 throw std::runtime_error("server_name missing");
             server_name = *i;
@@ -267,19 +241,14 @@ void ConfigFile::parse_server(std::vector<std::string>& tokens, std::vector<std:
         else if (!i->compare("client_max_body_size"))
         {
             i++;
-
             if (i == tokens.end())
                 throw std::runtime_error("client_max_body_size missing");
             for (size_t j = 0; j < i->size(); j++)
             {
-                if (!std::isdigit(
-                        static_cast<unsigned char>((*i)[j])))
-                {
+                if (!isdigit((*i)[j]))
                     throw std::runtime_error("client_max_body_size is not a number");
-                }
             }
-            client_max_size_body =
-                std::atoi(i->c_str());
+            client_max_size_body = std::atoi(i->c_str());
             i++;
             check_semicolon(i);
             i++;
@@ -287,7 +256,6 @@ void ConfigFile::parse_server(std::vector<std::string>& tokens, std::vector<std:
         else if (!i->compare("host"))
         {
             i++;
-
             if (i == tokens.end())
                 throw std::runtime_error("host missing");
             struct sockaddr_in sa;
@@ -309,10 +277,8 @@ void ConfigFile::parse_server(std::vector<std::string>& tokens, std::vector<std:
 
             for (size_t j = 0; j < i->size(); j++)
             {
-                if (!std::isdigit(static_cast<unsigned char>((*i)[j])))
-                {
+                if (!isdigit((*i)[j]))
                     throw std::runtime_error("error page status is not a number");
-                }
             }
             int error_code = std::atoi(i->c_str());
             i++;

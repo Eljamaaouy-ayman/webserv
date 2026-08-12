@@ -13,14 +13,11 @@ int main(int ac, char **av)
 		std::vector<ConfigFile> configs;
 		std::vector<std::string> tokens = ConfigFile::tokenize_config(av[1]);
 		std::vector<std::string>::iterator i = tokens.begin();
-
 		while (i != tokens.end())
 		{
 			if (*i != "server")
 				throw std::runtime_error("expected server");
-
 			ConfigFile conf;
-
 			conf.parse_server(tokens, i);
             if (conf.listen.empty())
 			throw std::runtime_error("no listen ports defined in config");
