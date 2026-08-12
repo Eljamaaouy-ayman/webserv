@@ -459,10 +459,17 @@ void Server::_reapTimedOutClients()
 // Runs forever: the single poll() loop driving every client socket and CGI pipe.
 void Server::run()
 {
+	time_t testStart = time(NULL);
 	while (true)
 	{
-		if (poll(_fds.data(), _fds.size(), _pollTimeout()) < 0)
+		// if (poll(_fds.data(), _fds.size(), _pollTimeout()) < 0)
+		// 	throw std::runtime_error("poll() failed");
+
+		if (poll(_fds.data(), _fds.size(), 1000) < 0)   // TEMP: hardcoded 1000ms instead of _pollTimeout()
 			throw std::runtime_error("poll() failed");
+
+		if (time(NULL) - testStart >= 10)   // TEMP: remove after testing
+			break;
 
 		_reapTimedOutCgi();
 		_reapTimedOutClients();
