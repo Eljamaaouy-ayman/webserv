@@ -1,24 +1,31 @@
 #include "../includes/includes.hpp"
 
+std::map<int, std::string> HttpResponse::initReasonPhrases()
+{
+    std::map<int, std::string> reasonPhrases;
+    reasonPhrases[200] = "OK";
+    reasonPhrases[201] = "Created";
+    reasonPhrases[204] = "No Content";
+    reasonPhrases[301] = "Moved Permanently";
+    reasonPhrases[302] = "Found";
+    reasonPhrases[400] = "Bad Request";
+    reasonPhrases[403] = "Forbidden";
+    reasonPhrases[404] = "Not Found";
+    reasonPhrases[405] = "Method Not Allowed";
+    reasonPhrases[409] = "Conflict";
+    reasonPhrases[413] = "Payload Too Large";
+    reasonPhrases[415] = "Unsupported Media Type";
+    reasonPhrases[500] = "Internal Server Error";
+    reasonPhrases[501] = "Not Implemented";
+    reasonPhrases[504] = "Gateway Timeout";
+    reasonPhrases[505] = "HTTP Version Not Supported";
+    return reasonPhrases;
+}
+
 std::string HttpResponse::getReasonPhrase()
 {
-    static std::map<int, std::string> reasonPhrases = {
-        {200, "OK"},
-        {201, "Created"},
-        {204, "No Content"},
-        {301, "Moved Permanently"},
-        {302, "Found"},
-        {400, "Bad Request"},
-        {403, "Forbidden"},
-        {404, "Not Found"},
-        {405, "Method Not Allowed"},
-        {409, "Conflict"},
-        {413, "Payload Too Large"},
-        {415, "Unsupported Media Type"},
-        {500, "Internal Server Error"},
-        {501, "Not Implemented"},
-        {504, "Gateway Timeout"},
-        {505, "HTTP Version Not Supported"}};
+    static std::map<int, std::string> reasonPhrases = initReasonPhrases();
+
     std::map<int, std::string>::const_iterator it = reasonPhrases.find(statusCode);
     if (it == reasonPhrases.end())
         return "Unknown";

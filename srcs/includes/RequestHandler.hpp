@@ -27,7 +27,8 @@ typedef struct Part
 
 class RequestHandler
 {
-private:
+    private:
+    static std::map<std::string, std::string> initMimeTypes();
     static bool isMethodAllowed(const std::string &method, location *loc);
     static std::string urlDecode(std::string &str);
     static std::string getFieldValue(const std::string &body, const std::string &field);

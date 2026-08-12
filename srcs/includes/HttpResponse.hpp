@@ -18,6 +18,7 @@ private:
     std::map<std::string, std::string> headers;
     std::string body_;
     std::vector<std::string> cookies;
+    std::map<int, std::string>initReasonPhrases();
     std::string getReasonPhrase();
 
 public:

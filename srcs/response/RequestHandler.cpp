@@ -31,25 +31,29 @@ bool RequestHandler::isMethodAllowed(const std::string &method, location *loc)
     }
     return false;
 }
-
+std::map<std::string, std::string> RequestHandler::initMimeTypes()
+{
+    std::map<std::string, std::string> mimeTypes;
+    mimeTypes[".html"] = "text/html";
+    mimeTypes[".htm"] = "text/html";
+    mimeTypes[".css"] = "text/css";
+    mimeTypes[".js"] = "text/javascript";
+    mimeTypes[".txt"] = "text/plain";
+    mimeTypes[".png"] = "image/png";
+    mimeTypes[".jpg"] = "image/jpeg";
+    mimeTypes[".jpeg"] = "image/jpeg";
+    mimeTypes[".gif"] = "image/gif";
+    mimeTypes[".ico"] = "image/x-icon";
+    mimeTypes[".svg"] = "image/svg+xml";
+    mimeTypes[".json"] = "application/json";
+    mimeTypes[".pdf"] = "application/pdf";
+    mimeTypes[".woff"] = "font/woff";
+    mimeTypes[".woff2"] = "font/woff2";
+    return mimeTypes;
+}
 std::string RequestHandler::getMimeType(const std::string &uri)
 {
-    static const std::map<std::string, std::string> mimeTypes = {
-        {".html", "text/html"},
-        {".htm", "text/html"},
-        {".css", "text/css"},
-        {".js", "text/javascript"},
-        {".txt", "text/plain"},
-        {".png", "image/png"},
-        {".jpg", "image/jpeg"},
-        {".jpeg", "image/jpeg"},
-        {".gif", "image/gif"},
-        {".ico", "image/x-icon"},
-        {".svg", "image/svg+xml"},
-        {".json", "application/json"},
-        {".pdf", "application/pdf"},
-        {".woff", "font/woff"},
-        {".woff2", "font/woff2"}};
+    static const std::map<std::string, std::string> mimeTypes = initMimeTypes();
 
     size_t dotPos = uri.find_last_of('.');
 
@@ -268,10 +272,11 @@ HttpResponse RequestHandler::handleRegister(const std::string &username, const s
 HttpResponse RequestHandler::handleLogout(Request &req)
 {
     HttpResponse response;
-    if(req.request.find("Cookie") != req.request.end()){
+    if (req.request.find("Cookie") != req.request.end())
+    {
         std::string session = SessionManager::extractSessionID(req.request["Cookie"]);
-        if(!session.empty())
-        SessionManager::destroySession(session);
+        if (!session.empty())
+            SessionManager::destroySession(session);
     }
     response.setStatusCode(302);
     response.addCookie("session_id", "", "/", 0);
@@ -398,7 +403,7 @@ HttpResponse RequestHandler::handleRequest(Request &req)
 
     HttpResponse response;
     location *loc = getLocation(req.path, req.conf.locations);
-    if (req.request["post-body"].size() > req.conf.client_max_size_body)
+    if (req.request["post-body"].size() > static_cast<size_t>(req.conf.client_max_size_body))
         return errorResponse(413, req.conf);
 
     if (loc && !loc->return_to.empty())
