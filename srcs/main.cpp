@@ -1,24 +1,5 @@
 #include "includes/request.hpp"
 
-// -- previous placeholder, parsed the config but never started the server --
-// int main(int ac, char ** av){
-//     Request request;
-//     try{
-//         if (ac == 1){
-//             char file[] = "config/default.conf";
-//             request.conf.parse_config_file(file);
-//         }
-//         else if (ac == 2)
-//             request.conf.parse_config_file(av[1]);
-//         else
-//             throw std::runtime_error("./program configFile");
-//
-//     } catch (const std::exception &e){
-//         std::cerr << e.what() << '\n';
-//         return 1;
-//     }
-// }
-
 int main(int ac, char **av)
 {
 	if (ac > 2)
@@ -29,31 +10,38 @@ int main(int ac, char **av)
 
 	try
 	{
-		Request request;
 		char defaultConf[] = "config/default.conf";
+		char *configPath = (ac == 2) ? av[1] : defaultConf;
 
-		if (ac == 2)
-			request.conf.parse_config_file(av[1]);
-		else
-			request.conf.parse_config_file(defaultConf);
+		std::vector<ConfigFile> configs;
+		std::vector<std::string> tokens = ConfigFile::tokenize_config(configPath);
+		std::vector<std::string>::iterator i = tokens.begin();
 
-		if (request.conf.listen.empty())
-			throw std::runtime_error("no listen ports defined in config");
+		while (i != tokens.end())
+		{
+			if (*i != "server")
+				throw std::runtime_error("Expected server");
+
+			ConfigFile conf;
+
+			conf.parse_server(tokens, i);
+			if (conf.listen.empty())
+				throw std::runtime_error("No listen ports defined in Config");
+
+			configs.push_back(conf);
+		}
 
 		Server server;
-		server.init(request.conf.listen);
+		server.init(configs);
 
-		std::cout << "Server listening on port(s):";
-		for (size_t i = 0; i < request.conf.listen.size(); i++)
-			std::cout << " " << request.conf.listen[i];
-		std::cout << "\n";
-
-		server.run(request);
+		server.run();
 	}
-	catch (const std::exception &e)
+
+	catch(const std::exception &e)
 	{
 		std::cerr << e.what() << "\n";
-		return 1;
+		return (1);
 	}
-	return 0;
+
+	return (0);
 }

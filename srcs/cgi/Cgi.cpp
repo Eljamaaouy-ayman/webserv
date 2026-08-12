@@ -176,7 +176,7 @@ CgiProcess Cgi::start(Request &req)
 }
 
 // Splits a finished CGI script's raw stdout into headers and body for an HttpResponse.
-HttpResponse Cgi::parseOutput(const std::string &output) //remove this 
+HttpResponse Cgi::parseOutput(const std::string &output) 
 {
     HttpResponse response;
     response.setStatusCode(200);
