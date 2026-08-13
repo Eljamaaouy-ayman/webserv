@@ -69,12 +69,12 @@ std::string RequestHandler::getMimeType(const std::string &uri)
     return it->second;
 }
 
-std::string RequestHandler::urlDecode(std::string &str)
+std::string RequestHandler::urlDecode(std::string &str, bool isFormData)
 {
     std::string result;
     for (size_t i = 0; i < str.length(); i++)
     {
-        if (str[i] == '+')
+        if (str[i] == '+' && isFormData)
             result += ' ';
         else if (str[i] == '%')
         {
@@ -98,7 +98,7 @@ std::string RequestHandler::getFieldValue(const std::string &body, const std::st
     size_t end = body.find('&', start);
     std::string value = body.substr(start, end - start);
 
-    std::string decodedValue = urlDecode(value);
+    std::string decodedValue = urlDecode(value, true);
 
     return decodedValue;
 }
@@ -231,15 +231,11 @@ std::vector<Part> RequestHandler::parseMultipart(const std::string &body, const 
     }
     return parts;
 }
-HttpResponse RequestHandler::handleLogin(const std::string &username, const std::string &password)
+HttpResponse RequestHandler::handleLogin(const std::string &username, const std::string &password, Request &req)
 {
     HttpResponse response;
     if (UserManager::authenticateUser(username, password) == false)
-    {
-        response.setStatusCode(401);
-        response.setBody(CreatePages::LoginPage("Wrong username or password."));
-        response.addHeader("Content-Type", "text/html");
-    }
+        return errorResponse(401, req.conf);
     else
     {
         response.setStatusCode(302);
@@ -251,15 +247,11 @@ HttpResponse RequestHandler::handleLogin(const std::string &username, const std:
     return response;
 }
 
-HttpResponse RequestHandler::handleRegister(const std::string &username, const std::string &password)
+HttpResponse RequestHandler::handleRegister(const std::string &username, const std::string &password, Request &req)
 {
     HttpResponse response;
     if (UserManager::addUser(username, password) == false)
-    {
-        response.setStatusCode(409);
-        response.setBody(CreatePages::RegisterPage("Username already exists"));
-        response.addHeader("Content-Type", "text/html");
-    }
+        return errorResponse(409, req.conf);
     else
     {
         response.setStatusCode(302);
@@ -280,7 +272,7 @@ HttpResponse RequestHandler::handleLogout(Request &req)
     }
     response.setStatusCode(302);
     response.addCookie("session_id", "", "/", 0);
-    response.addHeader("Location", "/login");
+    response.addHeader("Location", "/");
     return response;
 }
 HttpResponse RequestHandler::handleUpload(Request &req, location *loc)
@@ -368,14 +360,26 @@ HttpResponse RequestHandler::handlePOST(Request &req, location *loc)
     HttpResponse response;
 
     if (req.path == "/login")
-        return (handleLogin(getFieldValue(req.request["post-body"], "username"), getFieldValue(req.request["post-body"], "password")));
+    {
+        if (req.request["Content-Type"].find("application/x-www-form-urlencoded") == std::string::npos)
+            return errorResponse(415, req.conf);
+        return (handleLogin(getFieldValue(req.request["post-body"], "username"), getFieldValue(req.request["post-body"], "password"), req));
+    }
     else if (req.path == "/register")
-        return (handleRegister(getFieldValue(req.request["post-body"], "username"), getFieldValue(req.request["post-body"], "password")));
-    else if (req.request["Content-Type"].find("multipart/form-data") != std::string::npos)
+    {
+        if (req.request["Content-Type"].find("application/x-www-form-urlencoded") == std::string::npos)
+            return errorResponse(415, req.conf);
+        return (handleRegister(getFieldValue(req.request["post-body"], "username"), getFieldValue(req.request["post-body"], "password"), req));
+    }
+    else if (req.path == "/upload")
+    {
+        if (req.request["Content-Type"].find("multipart/form-data") == std::string::npos)
+            return errorResponse(415, req.conf);
         return handleUpload(req, loc);
+    }
     else if (req.path == "/logout")
         return handleLogout(req);
-    return errorResponse(415, req.conf);
+    return errorResponse(404, req.conf);
 }
 HttpResponse RequestHandler::handleDELETE(Request &req, location *loc)
 {
@@ -398,32 +402,33 @@ HttpResponse RequestHandler::handleDELETE(Request &req, location *loc)
 }
 HttpResponse RequestHandler::handleRequest(Request &req)
 {
-    if (req.method == "ERROR")
-        return errorResponse(400, req.conf);
-
-    HttpResponse response;
-    location *loc = getLocation(req.path, req.conf.locations);
-    if (req.request["post-body"].size() > static_cast<size_t>(req.conf.client_max_size_body))
-        return errorResponse(413, req.conf);
-
-    if (loc && !loc->return_to.empty())
-    {
-        response.addHeader("Location", loc->return_to);
-        response.setStatusCode(301);
-        return response;
-    }
-    else if (isMethodAllowed(req.method, loc) == false)
-        return errorResponse(405, req.conf);
-
-    if (req.path == "/upload.html" && !isAuthenticated(req))
-    {
-        response.addHeader("Location", "/login.html");
-        response.setStatusCode(302);
-        return response;
-    }
     try
     {
-        // std::cout << "requested path: " << req.path << std::endl;
+        req.path = urlDecode(req.path, false);
+        if (req.method == "ERROR")
+            return errorResponse(400, req.conf);
+
+        HttpResponse response;
+        location *loc = getLocation(req.path, req.conf.locations);
+        if (req.request["post-body"].size() > static_cast<size_t>(req.conf.client_max_size_body))
+            return errorResponse(413, req.conf);
+
+        if (loc && !loc->return_to.empty())
+        {
+            response.addHeader("Location", loc->return_to);
+            response.setStatusCode(301);
+            return response;
+        }
+        else if (isMethodAllowed(req.method, loc) == false)
+            return errorResponse(405, req.conf);
+
+        if ((req.path == "/protected" || req.path.find("/protected/") == 0) && !isAuthenticated(req))
+        {
+            response.addHeader("Location", "/login.html");
+            response.setStatusCode(302);
+            return response;
+        }
+
         if (req.method == "GET")
             return handleGET(req, loc);
         else if (req.method == "POST")

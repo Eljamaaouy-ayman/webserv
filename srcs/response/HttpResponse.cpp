@@ -9,6 +9,7 @@ std::map<int, std::string> HttpResponse::initReasonPhrases()
     reasonPhrases[301] = "Moved Permanently";
     reasonPhrases[302] = "Found";
     reasonPhrases[400] = "Bad Request";
+    reasonPhrases[401] = "Unauthorized";
     reasonPhrases[403] = "Forbidden";
     reasonPhrases[404] = "Not Found";
     reasonPhrases[405] = "Method Not Allowed";

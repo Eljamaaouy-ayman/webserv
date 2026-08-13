@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>404 Not Found · webserv</title>
+<title>415 Unsupported Media Type · webserv</title>
 <style>
   :root {
     --bg: #0c0e11;
@@ -138,11 +138,11 @@
       <div class="dots"><span></span><span></span><span></span></div>
     </div>
     <div class="body">
-      <p class="status-line">HTTP/1.1 <b>404</b> Not Found</p>
-      <p class="code">404</p>
-      <p class="name">Not Found</p>
-      <p class="desc">Nothing lives at this address.</p>
-      <div class="log"><span class="tag">[webserv]</span> no matching route or file</div>
+      <p class="status-line">HTTP/1.1 <b>415</b> Unsupported Media Type</p>
+      <p class="code">415</p>
+      <p class="name">Unsupported Media Type</p>
+      <p class="desc">The server won't process this content type.</p>
+      <div class="log"><span class="tag">[webserv]</span> content-type not accepted by handler</div>
       <div class="prompt">
         <span class="path">~/webserv</span><span class="sep">$</span>
         <span>go back to <a class="home" href="/">/</a></span>

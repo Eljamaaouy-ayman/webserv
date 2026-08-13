@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>404 Not Found · webserv</title>
+<title>414 URI Too Long · webserv</title>
 <style>
   :root {
     --bg: #0c0e11;
@@ -138,11 +138,11 @@
       <div class="dots"><span></span><span></span><span></span></div>
     </div>
     <div class="body">
-      <p class="status-line">HTTP/1.1 <b>404</b> Not Found</p>
-      <p class="code">404</p>
-      <p class="name">Not Found</p>
-      <p class="desc">Nothing lives at this address.</p>
-      <div class="log"><span class="tag">[webserv]</span> no matching route or file</div>
+      <p class="status-line">HTTP/1.1 <b>414</b> URI Too Long</p>
+      <p class="code">414</p>
+      <p class="name">URI Too Long</p>
+      <p class="desc">The request URI is longer than this server allows.</p>
+      <div class="log"><span class="tag">[webserv]</span> uri exceeds configured limit</div>
       <div class="prompt">
         <span class="path">~/webserv</span><span class="sep">$</span>
         <span>go back to <a class="home" href="/">/</a></span>

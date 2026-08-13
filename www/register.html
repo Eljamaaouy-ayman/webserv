@@ -2,89 +2,71 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Register &mdash; webserv</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="stylesheet" href="style.css">
+<title>register test</title>
+<style>
+  body { font-family: sans-serif; max-width: 500px; margin: 40px auto; }
+  label { display: block; margin-top: 12px; font-weight: bold; }
+  input { width: 100%; padding: 6px; box-sizing: border-box; }
+  button { margin-top: 16px; padding: 8px 16px; }
+  .note { color: #555; font-size: 0.9em; }
+  a { display: inline-block; margin-top: 16px; }
+</style>
 </head>
 <body>
-  <nav>
-    <a href="index.html">Home</a>
-    <a href="login.html" data-auth="guest">Login</a>
-    <a href="register.html" class="active" data-auth="guest">Register</a>
-    <a href="upload.html">Upload</a>
-    <a href="button.html">Test Actions</a>
-    <a href="#" id="logoutLink" data-auth="user">Logout</a>
-  </nav>
-  <main>
-    <div class="card">
-      <h1>Create an account</h1>
-      <p class="sub">Register a new webserv user</p>
+<h1>Register (POST /register)</h1>
+<p class="note">New username → 302 to <code>/</code> with session cookie set.
+Duplicate username → 409.</p>
 
-      <form id="registerForm" method="POST" action="/register">
-        <label for="username">Username</label>
-        <input type="text" id="username" name="username" placeholder="jdoe" required>
+<form id="registerForm">
+  <label for="username">Username</label>
+  <input id="username" name="username" type="text" required>
 
-        <label for="email">Email</label>
-        <input type="email" id="email" name="email" placeholder="jdoe@example.com" required>
+  <label for="password">Password</label>
+  <input id="password" name="password" type="password" required>
 
-        <label for="password">Password</label>
-        <input type="password" id="password" name="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" required>
+  <button type="submit">Register</button>
+</form>
 
-        <label for="confirm">Confirm password</label>
-        <input type="password" id="confirm" name="confirm" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" required>
+<p id="status"></p>
 
-        <button type="submit">Register</button>
-      </form>
+<script>
+  document.getElementById("registerForm").addEventListener("submit", function (e) {
+    e.preventDefault(); // Stop the page from reloading
 
-      <div id="status" class="status"></div>
+    // Convert the form data into URL-encoded format
+    let formData = new FormData(this);
+    let urlEncodedData = new URLSearchParams(formData);
+    
+    let statusText = document.getElementById("status");
+    statusText.innerText = "Registering...";
+    statusText.style.color = "black";
 
-      <p class="foot-link">Already have an account? <a href="login.html">Log in</a></p>
-    </div>
-  </main>
-  <script src="auth.js"></script>
-  <script>
-    const form = document.getElementById('registerForm');
-    const status = document.getElementById('status');
-
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      const pass = document.getElementById('password').value;
-      const confirm = document.getElementById('confirm').value;
-
-      if (pass !== confirm) {
-        status.className = 'status show err';
-        status.textContent = 'Passwords do not match.';
-        return;
-      }
-
-      status.className = 'status show';
-      status.textContent = 'Registering...';
-
-      const formData = new FormData(form);
-      formData.delete('confirm');
-      const params = new URLSearchParams(formData);
-
-      try {
-        const res = await fetch(form.action, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: params
-        });
-        const text = await res.text();
-
-        if (res.ok) {
-          status.className = 'status show ok';
-          status.textContent = `Success (${res.status}): ${text || 'Account created.'}`;
+    fetch("/register", {
+      method: "POST",
+      body: urlEncodedData,
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    })
+      .then((response) => {
+        if (response.status === 409) {
+          statusText.innerText = "Error 409: Conflict (Username already exists)";
+          statusText.style.color = "red";
+        } else if (response.ok || response.redirected) {
+          statusText.innerText = "Success! Account registered.";
+          statusText.style.color = "green";
         } else {
-          status.className = 'status show err';
-          status.textContent = `Error (${res.status}): ${text || 'Registration failed.'}`;
+          statusText.innerText = "Error: " + response.status;
+          statusText.style.color = "red";
         }
-      } catch (err) {
-        status.className = 'status show err';
-        status.textContent = `Network error: ${err.message}`;
-      }
-    });
-  </script>
+      })
+      .catch((error) => {
+        statusText.innerText = "Registration request failed.";
+        statusText.style.color = "red";
+      });
+  });
+</script>
+
+<a href="/">&larr; back to hub</a>
 </body>
 </html>

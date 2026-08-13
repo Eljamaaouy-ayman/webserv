@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>404 Not Found · webserv</title>
+<title>411 Length Required · webserv</title>
 <style>
   :root {
     --bg: #0c0e11;
@@ -138,11 +138,11 @@
       <div class="dots"><span></span><span></span><span></span></div>
     </div>
     <div class="body">
-      <p class="status-line">HTTP/1.1 <b>404</b> Not Found</p>
-      <p class="code">404</p>
-      <p class="name">Not Found</p>
-      <p class="desc">Nothing lives at this address.</p>
-      <div class="log"><span class="tag">[webserv]</span> no matching route or file</div>
+      <p class="status-line">HTTP/1.1 <b>411</b> Length Required</p>
+      <p class="code">411</p>
+      <p class="name">Length Required</p>
+      <p class="desc">The request needs a Content-Length header.</p>
+      <div class="log"><span class="tag">[webserv]</span> missing content-length on body</div>
       <div class="prompt">
         <span class="path">~/webserv</span><span class="sep">$</span>
         <span>go back to <a class="home" href="/">/</a></span>

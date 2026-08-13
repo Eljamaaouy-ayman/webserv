@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>delete test</title>
+<style>
+  body { font-family: sans-serif; max-width: 500px; margin: 40px auto; }
+  label { display: block; margin-top: 12px; font-weight: bold; }
+  input { width: 100%; padding: 6px; box-sizing: border-box; }
+  button { margin-top: 16px; padding: 8px 16px; }
+  .note { color: #555; font-size: 0.9em; }
+  #result { margin-top: 20px; padding: 10px; border-radius: 4px; white-space: pre-wrap; font-family: monospace; }
+  .ok { background: #e6ffe6; border: 1px solid #4caf50; }
+  .err { background: #ffe6e6; border: 1px solid #f44336; }
+  a { display: inline-block; margin-top: 16px; }
+</style>
+</head>
+<body>
+<h1>Delete tester (DELETE)</h1>
+<p class="note">HTML forms only support GET/POST, so this sends a real <code>DELETE</code> via
+<code>fetch()</code>. Path should be relative to the server root, e.g. <code>/uploads/myfile.txt</code>
+(upload something first on the <a href="upload.html">upload page</a>). Expect 204 on success,
+403 if the path is a directory, 404 if it doesn't exist.</p>
+
+<label for="path">Path to delete</label>
+<input id="path" type="text" value="/uploads/">
+<button id="go">Send DELETE</button>
+
+<div id="result"></div>
+
+<a href="/">&larr; back to hub</a>
+
+<script>
+document.getElementById('go').addEventListener('click', async () => {
+  const path = document.getElementById('path').value;
+  const resultEl = document.getElementById('result');
+  resultEl.className = '';
+  resultEl.textContent = 'Sending...';
+  try {
+    const res = await fetch(path, { method: 'DELETE' });
+    const text = await res.text();
+    resultEl.className = res.ok ? 'ok' : 'err';
+    resultEl.textContent = `Status: ${res.status} ${res.statusText}\n\n${text}`;
+  } catch (e) {
+    resultEl.className = 'err';
+    resultEl.textContent = 'Request failed: ' + e;
+  }
+});
+</script>
+</body>
+</html>

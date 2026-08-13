@@ -1,110 +1,86 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Upload &mdash; webserv</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <nav>
-    <a href="index.html">Home</a>
-    <a href="login.html" data-auth="guest">Login</a>
-    <a href="register.html" data-auth="guest">Register</a>
-    <a href="upload.html" class="active">Upload</a>
-    <a href="button.html">Test Actions</a>
-    <a href="#" id="logoutLink" data-auth="user">Logout</a>
-  </nav>
-  <main>
-    <div class="card">
-      <h1>Upload a file</h1>
-      <p class="sub">Sends a <code>multipart/form-data</code> POST to <code>/upload</code></p>
-
-      <form id="uploadForm" method="POST" action="/upload" enctype="multipart/form-data">
-        <label>File</label>
-        <div class="file-drop" id="dropZone">
-          Drag &amp; drop a file here, or click to browse
-          <input type="file" id="fileInput" name="file" required>
-        </div>
-        <div id="fileName"></div>
-
-        <button type="submit">Upload</button>
-      </form>
-
-      <div id="status" class="status"></div>
-    </div>
-  </main>
-  <script src="auth.js"></script>
-  <script>
-    const dropZone = document.getElementById('dropZone');
-    const fileInput = document.getElementById('fileInput');
-    const fileName = document.getElementById('fileName');
-    const form = document.getElementById('uploadForm');
-    const status = document.getElementById('status');
-
-    dropZone.addEventListener('click', () => fileInput.click());
-
-    fileInput.addEventListener('change', () => {
-      if (fileInput.files.length) {
-        fileName.textContent = `Selected: ${fileInput.files[0].name} (${(fileInput.files[0].size / 1024).toFixed(1)} KB)`;
+  <head>
+    <meta charset="UTF-8" />
+    <title>upload test</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        max-width: 500px;
+        margin: 40px auto;
       }
-    });
-
-    ['dragenter', 'dragover'].forEach(evt => {
-      dropZone.addEventListener(evt, (e) => {
-        e.preventDefault();
-        dropZone.classList.add('drag');
-      });
-    });
-
-    ['dragleave', 'drop'].forEach(evt => {
-      dropZone.addEventListener(evt, (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('drag');
-      });
-    });
-
-    dropZone.addEventListener('drop', (e) => {
-      const files = e.dataTransfer.files;
-      if (files.length) {
-        fileInput.files = files;
-        fileName.textContent = `Selected: ${files[0].name} (${(files[0].size / 1024).toFixed(1)} KB)`;
+      label {
+        display: block;
+        margin-top: 12px;
+        font-weight: bold;
       }
-    });
-
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      if (!fileInput.files.length) {
-        status.className = 'status show err';
-        status.textContent = 'Please choose a file first.';
-        return;
+      input[type="file"] {
+        margin-top: 6px;
       }
+      button {
+        margin-top: 16px;
+        padding: 8px 16px;
+      }
+      .note {
+        color: #555;
+        font-size: 0.9em;
+      }
+      a {
+        display: inline-block;
+        margin-top: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Upload (POST /upload)</h1>
+    <p class="note">
+      Sent as <code>multipart/form-data</code>, so
+      <code>handleUpload</code> parses it via <code>parseMultipart</code>/<code
+        >parseContentDisposition</code
+      >
+      and writes into <code>&lt;root&gt;/uploads/&lt;filename&gt;</code>.
+      Success → 201. Pick a file bigger than your
+      <code>client_max_size_body</code> to trigger 413. Select multiple files to
+      test multi-part bodies (each part must include a filename).
+    </p>
 
-      status.className = 'status show';
-      status.textContent = 'Uploading...';
+    <form id="uploadForm">
+      <label for="file">File(s)</label>
+      <input id="file" name="file" type="file" multiple required />
+      <button type="submit">Upload</button>
+    </form>
 
-      const formData = new FormData(form);
+    <p id="status"></p>
 
-      try {
-        const res = await fetch(form.action, {
-          method: 'POST',
-          body: formData
+    <script>
+      document
+        .getElementById("uploadForm")
+        .addEventListener("submit", function (e) {
+          e.preventDefault(); // This stops the browser from leaving the page!
+
+          let formData = new FormData(this);
+          let statusText = document.getElementById("status");
+          statusText.innerText = "Uploading...";
+
+          fetch("/upload", {
+            method: "POST",
+            body: formData,
+          })
+            .then((response) => {
+              if (response.status === 201) {
+                statusText.innerText = "Success! File uploaded.";
+                statusText.style.color = "green";
+              } else {
+                statusText.innerText = "Error: " + response.status;
+                statusText.style.color = "red";
+              }
+            })
+            .catch((error) => {
+              statusText.innerText = "Upload failed.";
+            });
         });
-        const text = await res.text();
+    </script>
 
-        if (res.ok) {
-          status.className = 'status show ok';
-          status.textContent = `Success (${res.status}): ${text || 'File uploaded.'}`;
-        } else {
-          status.className = 'status show err';
-          status.textContent = `Error (${res.status}): ${text || 'Upload failed.'}`;
-        }
-      } catch (err) {
-        status.className = 'status show err';
-        status.textContent = `Network error: ${err.message}`;
-      }
-    });
-  </script>
-</body>
+    <a href="/">&larr; back to hub</a>
+  </body>
 </html>

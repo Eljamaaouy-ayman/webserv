@@ -30,7 +30,7 @@ class RequestHandler
     private:
     static std::map<std::string, std::string> initMimeTypes();
     static bool isMethodAllowed(const std::string &method, location *loc);
-    static std::string urlDecode(std::string &str);
+    static std::string urlDecode(std::string &str, bool isFormData);
     static std::string getFieldValue(const std::string &body, const std::string &field);
     static location *getLocation(const std::string &uri, std::vector<location> &locations);
     static HttpResponse errorResponse(int code, ConfigFile &conf);
@@ -39,9 +39,9 @@ class RequestHandler
     static std::vector<Part> parseMultipart(const std::string &body, const std::string &boundary);
     static std::string extractBoundary(const std::string &contentType);
 
-    static HttpResponse handleLogin(const std::string &username, const std::string &password);
+    static HttpResponse handleLogin(const std::string &username, const std::string &password, Request &req);
     static HttpResponse handleLogout(Request &req);
-    static HttpResponse handleRegister(const std::string &username, const std::string &password);
+    static HttpResponse handleRegister(const std::string &username, const std::string &password, Request &req);
     static HttpResponse handleUpload(Request &req, location *loc);
     static HttpResponse handleAutoIndex(const std::string &path, const std::string &root);
 
