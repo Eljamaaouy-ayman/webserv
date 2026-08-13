@@ -107,7 +107,7 @@ std::string RequestHandler::extractBoundary(const std::string &contentType)
 {
     size_t boundaryKeyPos = contentType.find("boundary=");
     if (boundaryKeyPos == std::string::npos)
-        return "";
+        throw 400;
     size_t start = boundaryKeyPos + 9;
     size_t end = contentType.find(';', start);
     std::string boundary = contentType.substr(start, end - start);
