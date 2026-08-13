@@ -303,11 +303,9 @@ HttpResponse RequestHandler::handleAutoIndex(const std::string &path, const std:
 
     if (!dir)
         throw 404;
-    char resolvedRoot[PATH_MAX];
-    realpath(root.c_str(), resolvedRoot);
 
     HttpResponse response;
-    response.setBody(CreatePages::AutoIndexPage(dir, path, std::string(resolvedRoot) == path));
+    response.setBody(CreatePages::AutoIndexPage(dir, path, path == root + '/'));
     response.setStatusCode(200);
     response.addHeader("Content-Type", "text/html");
     closedir(dir);
