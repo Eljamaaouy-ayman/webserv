@@ -30,7 +30,7 @@ int main(int ac, char **av)
 
 			configs.push_back(conf);
 		}
-
+		
 		Server server;
 		server.init(configs);
 

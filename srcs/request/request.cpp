@@ -25,7 +25,7 @@ void Request::setRequest(const std::string &req) {
             this->method = "ERROR";
             return;
         }
-        // Check if request is CGI
+        
         this->checkCGI(this->path);
     }
 
@@ -80,7 +80,7 @@ void Request::clearRequestData() {
 bool Request::parseRequestLine(const std::string& line) {
     std::stringstream firstLine(line);
     std::string reqMethod;
-    
+
     firstLine >> reqMethod;
         this->method = reqMethod;
     
@@ -292,6 +292,7 @@ void Request::checkCGI(std::string path) {
     path.erase(0, 1);
   }
 
+
   size_t pos = path.find("/");
   if (pos == std::string::npos || path.substr(0, pos) != "cgi-bin") {
     return;
@@ -313,6 +314,7 @@ void Request::checkCGI(std::string path) {
   } else {
     this->cgi.scriptPath = this->conf.root + "/" + path;
   }
+
 
   if (posPathInfo != std::string::npos) {
     size_t endOfPathInfo = (pos != std::string::npos) ? pos : path.length();
