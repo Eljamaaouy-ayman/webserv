@@ -262,8 +262,9 @@ bool Server::_serviceCgiStdout(int pipeFd, int clientFd)
 
 // Reaps the CGI child and turns its collected output into the client's response.
 // ok=false means stdout ended in a real read() error, not clean EOF -- the
-// script's output (if any) can't be trusted, so this sends a 500 instead of
-// trying to parse it as a real response.
+// script's output (if any) can't be trusted. Either that or a clean exit with
+// a non-zero status/signal is treated the same way: 500 instead of trying to
+// parse whatever (if anything) came out as a real response.
 void Server::_finishCgi(int clientFd, bool ok)
 {
 	Client &client = _clients[clientFd];
@@ -277,10 +278,12 @@ void Server::_finishCgi(int clientFd, bool ok)
 		cgi->stdinFd = -1;
 	}
 
-	waitpid(cgi->pid, NULL, 0);
+	int status = 0;
+	waitpid(cgi->pid, &status, 0);
+	bool exitedCleanly = WIFEXITED(status) && WEXITSTATUS(status) == 0;
 
 	HttpResponse response;
-	if (!ok)
+	if (!ok || !exitedCleanly)
 	{
 		response.setStatusCode(500);
 		response.setErrorPage(client.request->conf);
