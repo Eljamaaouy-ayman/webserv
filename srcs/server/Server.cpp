@@ -527,10 +527,7 @@ void Server::run()
 						{
 							_clients[fd].write_buff = RequestHandler::handleRequest(*_clients[fd].request).build();
 							_fds[i].events |= POLLOUT;
-							// A 400 here means the request itself was unparseable (bad request
-							// line, missing/garbled Host, etc.) -- the framing is untrustworthy,
-							// so we can no longer be sure where a next request would even start
-							// on this connection. Close it once the response is flushed.
+					
 							if (_clients[fd].request->method == "ERROR")
 								_clients[fd].shouldClose = true;
 						}
